@@ -1,10 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export interface Document {
   id: string;
@@ -22,22 +18,34 @@ export function useDocuments(conversationId: string | null) {
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
-  // Extract text from PDF
+  // Extract text from PDF using dynamic import to avoid build issues
   const extractPdfText = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const textParts: string[] = [];
+    try {
+      // Dynamically import pdfjs-dist to avoid top-level await issues
+      const pdfjsLib = await import('pdfjs-dist');
+      
+      // Set worker source
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const textParts: string[] = [];
 
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      textParts.push(pageText);
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        textParts.push(pageText);
+      }
+
+      return textParts.join('\n\n');
+    } catch (error) {
+      console.error('PDF extraction error:', error);
+      // Return a placeholder if PDF parsing fails
+      return `[PDF Content - ${file.name}]\n\nNote: This PDF could not be fully parsed. The AI will still try to help based on any available context.`;
     }
-
-    return textParts.join('\n\n');
   };
 
   // Extract text from text file
