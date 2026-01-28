@@ -15,6 +15,10 @@ const Index = () => {
     createConversation,
     selectConversation,
     deleteConversation,
+    deleteAllConversations,
+    deleteMessage,
+    editMessage,
+    exportChat,
   } = useChat();
 
   const {
@@ -56,6 +60,13 @@ const Index = () => {
     }
   }, [currentConversationId, createConversation, uploadDocument]);
 
+  // Handle delete current conversation
+  const handleDeleteCurrentConversation = useCallback(() => {
+    if (currentConversationId) {
+      deleteConversation(currentConversationId);
+    }
+  }, [currentConversationId, deleteConversation]);
+
   return (
     <div className="flex h-screen overflow-hidden">
       <ChatSidebar
@@ -64,12 +75,17 @@ const Index = () => {
         onNewChat={() => createConversation()}
         onSelectConversation={selectConversation}
         onDeleteConversation={deleteConversation}
+        onDeleteAllConversations={deleteAllConversations}
       />
       <ChatContainer
         messages={messages}
         isLoading={isLoading}
         isStreaming={isStreaming}
         onSendMessage={handleSendMessage}
+        onEditMessage={editMessage}
+        onDeleteMessage={deleteMessage}
+        onDeleteConversation={handleDeleteCurrentConversation}
+        onExportChat={exportChat}
         documents={documents}
         onUploadDocument={handleUploadDocument}
         onDeleteDocument={deleteDocument}

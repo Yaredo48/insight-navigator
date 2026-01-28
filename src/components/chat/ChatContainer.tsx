@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import { ChatHeader } from './ChatHeader';
 import { DocumentList } from './DocumentList';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bot } from 'lucide-react';
@@ -13,6 +14,10 @@ interface ChatContainerProps {
   isLoading: boolean;
   isStreaming: boolean;
   onSendMessage: (message: string) => void;
+  onEditMessage?: (id: string, content: string) => Promise<boolean>;
+  onDeleteMessage?: (id: string) => void;
+  onDeleteConversation?: () => void;
+  onExportChat?: (format: 'txt' | 'json') => void;
   documents?: Document[];
   onUploadDocument?: (file: File) => Promise<void>;
   onDeleteDocument?: (id: string, storagePath: string) => void;
@@ -24,6 +29,10 @@ export function ChatContainer({
   isLoading,
   isStreaming,
   onSendMessage,
+  onEditMessage,
+  onDeleteMessage,
+  onDeleteConversation,
+  onExportChat,
   documents = [],
   onUploadDocument,
   onDeleteDocument,
@@ -40,18 +49,13 @@ export function ChatContainer({
 
   return (
     <div className="flex flex-1 flex-col bg-background">
-      {/* Header */}
-      <header className="flex items-center gap-3 border-b border-border bg-card px-6 py-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary">
-          <Bot className="h-5 w-5 text-primary-foreground" />
-        </div>
-        <div>
-          <h2 className="font-semibold text-foreground">Support Assistant</h2>
-          <p className="text-sm text-muted-foreground">
-            {isStreaming ? 'Typing...' : 'Online • Ready to help'}
-          </p>
-        </div>
-      </header>
+      <ChatHeader
+        isStreaming={isStreaming}
+        hasMessages={messages.length > 0}
+        onExportTxt={() => onExportChat?.('txt')}
+        onExportJson={() => onExportChat?.('json')}
+        onDeleteConversation={() => onDeleteConversation?.()}
+      />
 
       {/* Messages */}
       <ScrollArea 
@@ -97,9 +101,12 @@ export function ChatContainer({
             {messages.map((message, index) => (
               <ChatMessage
                 key={message.id}
+                id={message.id}
                 role={message.role}
                 content={message.content}
                 isStreaming={isStreaming && index === messages.length - 1 && message.role === 'assistant'}
+                onEdit={onEditMessage}
+                onDelete={onDeleteMessage}
               />
             ))}
           </div>

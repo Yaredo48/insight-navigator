@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -7,6 +7,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   created_at: string;
+  conversation_id?: string;
 }
 
 export interface Conversation {
@@ -23,6 +24,7 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const { toast } = useToast();
+  const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Load conversations
   const loadConversations = useCallback(async () => {
@@ -57,7 +59,70 @@ export function useChat() {
       role: m.role as 'user' | 'assistant',
       content: m.content,
       created_at: m.created_at,
+      conversation_id: m.conversation_id,
     })) || []);
+  }, []);
+
+  // Set up real-time subscription for messages
+  const setupRealtimeSubscription = useCallback((conversationId: string) => {
+    // Clean up existing subscription
+    if (subscriptionRef.current) {
+      supabase.removeChannel(subscriptionRef.current);
+    }
+
+    const channel = supabase
+      .channel(`messages:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newMessage = payload.new as any;
+            setMessages(prev => {
+              // Avoid duplicates
+              if (prev.some(m => m.id === newMessage.id)) {
+                return prev;
+              }
+              return [...prev, {
+                id: newMessage.id,
+                role: newMessage.role as 'user' | 'assistant',
+                content: newMessage.content,
+                created_at: newMessage.created_at,
+                conversation_id: newMessage.conversation_id,
+              }];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as any;
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === updated.id
+                  ? { ...m, content: updated.content }
+                  : m
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as any;
+            setMessages(prev => prev.filter(m => m.id !== deleted.id));
+          }
+        }
+      )
+      .subscribe();
+
+    subscriptionRef.current = channel;
+  }, []);
+
+  // Clean up subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current);
+      }
+    };
   }, []);
 
   // Create a new conversation
@@ -81,14 +146,16 @@ export function useChat() {
     setConversations(prev => [data, ...prev]);
     setCurrentConversationId(data.id);
     setMessages([]);
+    setupRealtimeSubscription(data.id);
     return data;
-  }, [toast]);
+  }, [toast, setupRealtimeSubscription]);
 
   // Select a conversation
   const selectConversation = useCallback(async (conversationId: string) => {
     setCurrentConversationId(conversationId);
     await loadMessages(conversationId);
-  }, [loadMessages]);
+    setupRealtimeSubscription(conversationId);
+  }, [loadMessages, setupRealtimeSubscription]);
 
   // Delete a conversation
   const deleteConversation = useCallback(async (conversationId: string) => {
@@ -112,7 +179,149 @@ export function useChat() {
       setCurrentConversationId(null);
       setMessages([]);
     }
+
+    toast({
+      title: 'Deleted',
+      description: 'Conversation deleted successfully',
+    });
   }, [currentConversationId, toast]);
+
+  // Delete all conversations
+  const deleteAllConversations = useCallback(async () => {
+    const { error } = await supabase
+      .from('conversations')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+    if (error) {
+      console.error('Error deleting all conversations:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete all conversations',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setConversations([]);
+    setCurrentConversationId(null);
+    setMessages([]);
+
+    toast({
+      title: 'Deleted',
+      description: 'All conversations deleted successfully',
+    });
+  }, [toast]);
+
+  // Delete a single message
+  const deleteMessage = useCallback(async (messageId: string) => {
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId);
+
+    if (error) {
+      console.error('Error deleting message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete message',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    toast({
+      title: 'Deleted',
+      description: 'Message deleted',
+    });
+  }, [toast]);
+
+  // Edit a message (only user messages)
+  const editMessage = useCallback(async (messageId: string, newContent: string) => {
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: newContent })
+      .eq('id', messageId);
+
+    if (error) {
+      console.error('Error updating message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update message',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === messageId ? { ...m, content: newContent } : m
+      )
+    );
+
+    toast({
+      title: 'Updated',
+      description: 'Message updated successfully',
+    });
+    return true;
+  }, [toast]);
+
+  // Export chat history
+  const exportChat = useCallback((format: 'txt' | 'json') => {
+    if (messages.length === 0) {
+      toast({
+        title: 'No messages',
+        description: 'There are no messages to export',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const conversation = conversations.find(c => c.id === currentConversationId);
+    const title = conversation?.title || 'Chat Export';
+    const timestamp = new Date().toISOString().split('T')[0];
+
+    let content: string;
+    let filename: string;
+    let mimeType: string;
+
+    if (format === 'txt') {
+      content = messages
+        .map(m => `[${m.role.toUpperCase()}] (${new Date(m.created_at).toLocaleString()})\n${m.content}`)
+        .join('\n\n---\n\n');
+      content = `# ${title}\nExported on: ${timestamp}\n\n${content}`;
+      filename = `${title.replace(/[^a-z0-9]/gi, '_')}_${timestamp}.txt`;
+      mimeType = 'text/plain';
+    } else {
+      content = JSON.stringify({
+        title,
+        exportedAt: new Date().toISOString(),
+        messages: messages.map(m => ({
+          role: m.role,
+          content: m.content,
+          timestamp: m.created_at,
+        })),
+      }, null, 2);
+      filename = `${title.replace(/[^a-z0-9]/gi, '_')}_${timestamp}.json`;
+      mimeType = 'application/json';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Exported',
+      description: `Chat exported as ${format.toUpperCase()}`,
+    });
+  }, [messages, conversations, currentConversationId, toast]);
 
   // Send a message
   const sendMessage = useCallback(async (content: string, documentContext?: string) => {
@@ -136,17 +345,29 @@ export function useChat() {
       role: 'user',
       content,
       created_at: new Date().toISOString(),
+      conversation_id: conversationId,
     };
     setMessages(prev => [...prev, userMessage]);
 
     // Save user message to database
-    await supabase.from('messages').insert({
+    const { data: savedUserMessage } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       role: 'user',
       content,
-    });
+    }).select().single();
 
-    // Prepare messages for API
+    // Update the optimistic message with the real ID
+    if (savedUserMessage) {
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === userMessage.id
+            ? { ...m, id: savedUserMessage.id }
+            : m
+        )
+      );
+    }
+
+    // Prepare messages for API (include full history for context)
     const apiMessages = [...messages, userMessage].map(m => ({
       role: m.role,
       content: m.content,
@@ -187,6 +408,7 @@ export function useChat() {
         role: 'assistant',
         content: '',
         created_at: new Date().toISOString(),
+        conversation_id: conversationId,
       }]);
 
       while (reader) {
@@ -229,11 +451,22 @@ export function useChat() {
 
       // Save assistant message to database
       if (assistantContent) {
-        await supabase.from('messages').insert({
+        const { data: savedAssistant } = await supabase.from('messages').insert({
           conversation_id: conversationId,
           role: 'assistant',
           content: assistantContent,
-        });
+        }).select().single();
+
+        // Update with real ID
+        if (savedAssistant) {
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === assistantMessageId
+                ? { ...m, id: savedAssistant.id }
+                : m
+            )
+          );
+        }
 
         // Update conversation title if it's the first exchange
         if (messages.length === 0) {
@@ -275,6 +508,10 @@ export function useChat() {
     createConversation,
     selectConversation,
     deleteConversation,
+    deleteAllConversations,
+    deleteMessage,
+    editMessage,
+    exportChat,
     loadConversations,
   };
 }
