@@ -1,9 +1,11 @@
 import { useRef, useEffect } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import { DocumentList } from './DocumentList';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bot } from 'lucide-react';
 import type { Message } from '@/hooks/useChat';
+import type { Document } from '@/hooks/useDocuments';
 import { motion } from 'framer-motion';
 
 interface ChatContainerProps {
@@ -11,6 +13,10 @@ interface ChatContainerProps {
   isLoading: boolean;
   isStreaming: boolean;
   onSendMessage: (message: string) => void;
+  documents?: Document[];
+  onUploadDocument?: (file: File) => Promise<void>;
+  onDeleteDocument?: (id: string, storagePath: string) => void;
+  isUploading?: boolean;
 }
 
 export function ChatContainer({
@@ -18,6 +24,10 @@ export function ChatContainer({
   isLoading,
   isStreaming,
   onSendMessage,
+  documents = [],
+  onUploadDocument,
+  onDeleteDocument,
+  isUploading = false,
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -96,11 +106,22 @@ export function ChatContainer({
         )}
       </ScrollArea>
 
+      {/* Document List */}
+      {onDeleteDocument && (
+        <DocumentList
+          documents={documents}
+          onDelete={onDeleteDocument}
+        />
+      )}
+
       {/* Input */}
       <ChatInput
         onSend={onSendMessage}
+        onUpload={onUploadDocument}
         isLoading={isLoading}
+        isUploading={isUploading}
         placeholder="Ask a question or describe your issue..."
+        hasDocuments={documents.length > 0}
       />
     </div>
   );

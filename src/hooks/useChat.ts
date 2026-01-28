@@ -115,7 +115,7 @@ export function useChat() {
   }, [currentConversationId, toast]);
 
   // Send a message
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, documentContext?: string) => {
     if (!content.trim() || isLoading) return;
 
     let conversationId = currentConversationId;
@@ -164,6 +164,7 @@ export function useChat() {
           body: JSON.stringify({
             messages: apiMessages,
             conversationId,
+            documentContext,
           }),
         }
       );

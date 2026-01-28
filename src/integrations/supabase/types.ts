@@ -35,6 +35,47 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          extracted_text: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          storage_path: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          extracted_text?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          storage_path: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          extracted_text?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string

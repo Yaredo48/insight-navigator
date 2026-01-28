@@ -21,6 +21,8 @@ Guidelines:
 - Provide step-by-step instructions when needed
 - Offer relevant follow-up suggestions
 
+IMPORTANT: When document context is provided, use it to answer the user's questions. Reference specific information from the documents when relevant. If asked about something not in the documents, politely indicate that the information isn't available in the provided documents.
+
 Remember: You represent the company. Be helpful, patient, and solution-oriented.`;
 
 serve(async (req) => {
@@ -30,7 +32,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, conversationId } = await req.json();
+    const { messages, conversationId, documentContext } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -40,6 +42,13 @@ serve(async (req) => {
 
     console.log(`Processing chat request for conversation: ${conversationId}`);
     console.log(`Number of messages: ${messages.length}`);
+    console.log(`Document context provided: ${!!documentContext}`);
+
+    // Build system prompt with optional document context
+    let systemContent = SYSTEM_PROMPT;
+    if (documentContext) {
+      systemContent += documentContext;
+    }
 
     // Call Lovable AI Gateway with streaming
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -51,12 +60,12 @@ serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemContent },
           ...messages,
         ],
         stream: true,
         temperature: 0.7,
-        max_tokens: 2048,
+        max_tokens: 4096,
       }),
     });
 
