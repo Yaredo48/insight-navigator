@@ -3,14 +3,25 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DocumentUpload } from './DocumentUpload';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
+  onUpload?: (file: File) => Promise<void>;
   isLoading: boolean;
+  isUploading?: boolean;
   placeholder?: string;
+  hasDocuments?: boolean;
 }
 
-export function ChatInput({ onSend, isLoading, placeholder = 'Type your message...' }: ChatInputProps) {
+export function ChatInput({ 
+  onSend, 
+  onUpload,
+  isLoading, 
+  isUploading = false,
+  placeholder = 'Type your message...',
+  hasDocuments = false,
+}: ChatInputProps) {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -38,17 +49,30 @@ export function ChatInput({ onSend, isLoading, placeholder = 'Type your message.
     }
   };
 
+  const handleUpload = async (file: File) => {
+    if (onUpload) {
+      await onUpload(file);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="border-t border-border bg-card p-4">
       <div className="mx-auto max-w-4xl">
-        <div className="relative flex items-end gap-3">
+        <div className="relative flex items-end gap-2">
+          {onUpload && (
+            <DocumentUpload 
+              onUpload={handleUpload}
+              isUploading={isUploading}
+              disabled={isLoading}
+            />
+          )}
           <div className="relative flex-1">
             <Textarea
               ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={placeholder}
+              placeholder={hasDocuments ? 'Ask a question about your documents...' : placeholder}
               disabled={isLoading}
               rows={1}
               className={cn(
@@ -77,7 +101,9 @@ export function ChatInput({ onSend, isLoading, placeholder = 'Type your message.
           </Button>
         </div>
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          Press Enter to send, Shift + Enter for new line
+          {hasDocuments 
+            ? 'Documents attached • Press Enter to send'
+            : 'Press Enter to send, Shift + Enter for new line'}
         </p>
       </div>
     </form>
