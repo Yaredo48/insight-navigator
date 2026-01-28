@@ -30,6 +30,8 @@ const Index = () => {
     getDocumentContext,
   } = useDocuments(currentConversationId);
 
+  const { trackAction } = useAutoSolution();
+
   // Load documents when conversation changes
   useEffect(() => {
     if (currentConversationId) {
@@ -46,7 +48,7 @@ const Index = () => {
   // Handle document upload
   const handleUploadDocument = useCallback(async (file: File) => {
     let convId = currentConversationId;
-    
+
     // Create a conversation if none exists
     if (!convId) {
       const newConv = await createConversation('New Conversation');
@@ -54,7 +56,7 @@ const Index = () => {
         convId = newConv.id;
       }
     }
-    
+
     if (convId) {
       await uploadDocument(file, convId);
     }
@@ -90,6 +92,7 @@ const Index = () => {
         onUploadDocument={handleUploadDocument}
         onDeleteDocument={deleteDocument}
         isUploading={isUploading}
+        currentConversationId={currentConversationId || undefined}
       />
     </div>
   );
