@@ -1,121 +1,213 @@
-import { useEffect, useCallback } from 'react';
-import { ChatSidebar } from '@/components/chat/ChatSidebar';
-import { ChatContainer } from '@/components/chat/ChatContainer';
-import { useChat } from '@/hooks/useChat';
-import { useDocuments } from '@/hooks/useDocuments';
-import { useAutoSolution } from '@/hooks/useAutoSolution';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useChat } from "@/hooks/useChat";
+import { useDocuments } from "@/hooks/useDocuments";
+import { ChatContainer } from "@/components/chat/ChatContainer";
+import { ChatSidebar } from "@/components/chat/ChatSidebar";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu, GraduationCap, BookOpen, User } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
+interface ChatContext {
+  role: string;
+  grade?: string;
+  subject?: string;
+  gradeName?: string;
+  subjectName?: string;
+  gradeId?: number;
+  subjectId?: number;
+}
 
 // Main application entry point
 const Index = () => {
+  console.log("Index component rendering");
+  const location = useLocation();
+  console.log("Location:", location);
+  const [chatContext, setChatContext] = useState<ChatContext | undefined>(undefined);
+
   const {
     messages,
-    conversations,
-    currentConversationId,
+    sendMessage,
     isLoading,
     isStreaming,
-    sendMessage,
+    // currentConversationId, 
     createConversation,
+    exportChat,
+    deleteAllConversations,
+    // Add other necessary exports from useChat
+    conversations,
+    currentConversationId,
     selectConversation,
     deleteConversation,
-    deleteAllConversations,
     deleteMessage,
     editMessage,
-    exportChat,
+    loadConversations
   } = useChat();
 
   const {
     documents,
-    isUploading,
-    loadDocuments,
     uploadDocument,
     deleteDocument,
-    getDocumentContext,
+    isUploading
   } = useDocuments(currentConversationId);
 
-  const { trackAction } = useAutoSolution();
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Load documents when conversation changes
+  // Extract context from navigation state
   useEffect(() => {
-    if (currentConversationId) {
-      loadDocuments(currentConversationId);
+    if (location.state) {
+      const state = location.state as { role?: string; gradeId?: number; subjectName?: string; gradeName?: string; subjectId?: number };
+      if (state.role) {
+        setChatContext({
+          role: state.role,
+          grade: state.gradeId?.toString(),
+          subject: state.subjectName, // passing name for prompt context
+          gradeName: state.gradeName,
+          subjectName: state.subjectName,
+          gradeId: state.gradeId,
+          subjectId: state.subjectId
+        });
+      }
     }
-  }, [currentConversationId, loadDocuments]);
+  }, [location.state]);
 
-  // Handle sending message with document context
   const handleSendMessage = useCallback((message: string) => {
-    const documentContext = getDocumentContext();
-    sendMessage(message, documentContext || undefined);
-  }, [sendMessage, getDocumentContext]);
+    // If we have documents, include context
+    const getDocumentContext = () => {
+      if (documents.length === 0) return null;
+      return documents.map(doc => `Title: ${doc.file_name}\nContent: ${doc.extracted_text}`).join('\n\n');
+    };
 
-  // Handle document upload
+    const documentContext = getDocumentContext();
+
+    // Pass context to sendMessage
+    sendMessage(message, documentContext || undefined, chatContext ? {
+      role: chatContext.role,
+      grade: chatContext.gradeName, // Use readable names for the prompt
+      subject: chatContext.subjectName
+    } : undefined);
+  }, [sendMessage, documents, chatContext]);
+
   const handleUploadDocument = useCallback(async (file: File) => {
     let convId = currentConversationId;
-    trackAction('feature_click', { feature: 'upload_document' });
 
-    // Create a conversation if none exists
     if (!convId) {
-      const newConv = await createConversation('New Conversation');
+
+      const newConv = await createConversation('New Conversation', chatContext ? {
+        role: chatContext.role,
+        gradeId: chatContext.gradeId,
+        subjectId: chatContext.subjectId
+      } : undefined);
+
       if (newConv) {
         convId = newConv.id;
       }
     }
 
     if (convId) {
-      try {
-        await uploadDocument(file, convId);
-      } catch (error) {
-        trackAction('upload_error', { error });
-        throw error;
+      const success = await uploadDocument(file, convId);
+      if (success) {
+        toast({
+          title: "Document uploaded",
+          description: "The AI can now use this document for context.",
+        });
       }
     }
-  }, [currentConversationId, createConversation, uploadDocument, trackAction]);
+  }, [uploadDocument, toast, createConversation, chatContext, currentConversationId]);
 
   // Handle cleanup of empty conversations
   const handleCreateNewConversation = useCallback(async () => {
-    const newConv = await createConversation('New Conversation');
-    return newConv?.id || null;
-  }, [createConversation]);
 
-  // Handle delete current conversation
-  const handleDeleteCurrentConversation = useCallback(() => {
-    if (currentConversationId) {
-      deleteConversation(currentConversationId);
-    }
-  }, [currentConversationId, deleteConversation]);
+    const newConv = await createConversation('New Conversation', chatContext ? {
+      role: chatContext.role,
+      gradeId: chatContext.gradeId,
+      subjectId: chatContext.subjectId
+    } : undefined);
+    return newConv?.id || null;
+  }, [createConversation, chatContext]);
+
+  // Handle export
+  const handleExportChat = (format: 'txt' | 'json') => {
+    exportChat(format);
+  };
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-background">
-      {/* Animated Background Blobs */}
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-      <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
+    <div className="flex h-screen w-full bg-background overflow-hidden relative">
+      {/* Mobile Sidebar Toggle */}
+      {isMobile && (
+        <div className="absolute top-4 left-4 z-50">
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Menu className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-[80%] sm:w-[350px]">
+              <ChatSidebar
+                conversations={conversations}
+                currentConversationId={currentConversationId}
+                onNewChat={handleCreateNewConversation}
+                onSelectConversation={selectConversation}
+                onDeleteConversation={deleteConversation}
+                onDeleteAllConversations={deleteAllConversations}
+              />
+            </SheetContent>
+          </Sheet>
+        </div>
+      )}
 
-      <div className="z-10 flex h-full w-full glass">
-        <ChatSidebar
-          conversations={conversations}
-          currentConversationId={currentConversationId}
-          onNewChat={() => createConversation()}
-          onSelectConversation={selectConversation}
-          onDeleteConversation={deleteConversation}
-          onDeleteAllConversations={deleteAllConversations}
-        />
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <div className="w-[300px] border-r">
+          <ChatSidebar
+            conversations={conversations}
+            currentConversationId={currentConversationId}
+            onNewChat={handleCreateNewConversation}
+            onSelectConversation={selectConversation}
+            onDeleteConversation={deleteConversation}
+            onDeleteAllConversations={deleteAllConversations}
+          />
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col h-full relative">
+        {/* Context Banner - Show if context is active */}
+        {chatContext && (
+          <div className="bg-muted/50 border-b px-4 py-2 flex items-center justify-between text-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" />
+                <span className="font-medium capitalize">{chatContext.role}</span>
+              </div>
+              {chatContext.gradeName && (
+                <div className="flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-primary" />
+                  <span>{chatContext.gradeName}</span>
+                </div>
+              )}
+              {chatContext.subjectName && (
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                  <span>{chatContext.subjectName}</span>
+                </div>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => window.history.back()}>
+              Change Context
+            </Button>
+          </div>
+        )}
+
         <ChatContainer
           messages={messages}
+          onSendMessage={handleSendMessage}
           isLoading={isLoading}
           isStreaming={isStreaming}
-          onSendMessage={handleSendMessage}
-          onEditMessage={editMessage}
-          onDeleteMessage={deleteMessage}
-          onDeleteConversation={handleDeleteCurrentConversation}
-          onExportChat={exportChat}
-          documents={documents}
-          onUploadDocument={handleUploadDocument}
-          onDeleteDocument={deleteDocument}
-          isUploading={isUploading}
-          currentConversationId={currentConversationId || undefined}
-          onCreateConversation={handleCreateNewConversation}
         />
       </div>
     </div>

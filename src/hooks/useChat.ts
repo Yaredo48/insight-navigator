@@ -82,7 +82,7 @@ export function useChat() {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            const newMessage = payload.new as any;
+            const newMessage = payload.new as Message;
             setMessages(prev => {
               // Avoid duplicates
               if (prev.some(m => m.id === newMessage.id)) {
@@ -97,7 +97,7 @@ export function useChat() {
               }];
             });
           } else if (payload.eventType === 'UPDATE') {
-            const updated = payload.new as any;
+            const updated = payload.new as Message;
             setMessages(prev =>
               prev.map(m =>
                 m.id === updated.id
@@ -106,7 +106,7 @@ export function useChat() {
               )
             );
           } else if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as any;
+            const deleted = payload.old as Message;
             setMessages(prev => prev.filter(m => m.id !== deleted.id));
           }
         }
@@ -125,30 +125,7 @@ export function useChat() {
     };
   }, []);
 
-  // Create a new conversation
-  const createConversation = useCallback(async (title?: string) => {
-    const { data, error } = await supabase
-      .from('conversations')
-      .insert({ title: title || 'New Conversation' })
-      .select()
-      .single();
 
-    if (error) {
-      console.error('Error creating conversation:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create conversation',
-        variant: 'destructive',
-      });
-      return null;
-    }
-
-    setConversations(prev => [data, ...prev]);
-    setCurrentConversationId(data.id);
-    setMessages([]);
-    setupRealtimeSubscription(data.id);
-    return data;
-  }, [toast, setupRealtimeSubscription]);
 
   // Select a conversation
   const selectConversation = useCallback(async (conversationId: string) => {
@@ -323,15 +300,57 @@ export function useChat() {
     });
   }, [messages, conversations, currentConversationId, toast]);
 
+  // Create a new conversation
+  const createConversation = useCallback(async (initialMessage: string, context?: { role: string, gradeId?: number, subjectId?: number }) => {
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .insert({
+          title: initialMessage.slice(0, 50),
+          role: (context?.role as 'student' | 'teacher') || 'student',
+          grade_id: context?.gradeId,
+          subject_id: context?.subjectId,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setConversations(prev => [data, ...prev]);
+      setCurrentConversationId(data.id);
+      return data;
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create conversation',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  }, [toast]);
+
   // Send a message
-  const sendMessage = useCallback(async (content: string, documentContext?: string) => {
+  const sendMessage = useCallback(async (content: string, documentContext?: string, context?: { role: string, grade?: string, subject?: string }) => {
     if (!content.trim() || isLoading) return;
 
     let conversationId = currentConversationId;
 
     // Create a new conversation if needed
     if (!conversationId) {
-      const newConv = await createConversation(content.slice(0, 50));
+      // Parse IDs from context if available
+      const gradeId = context?.grade ? parseInt(context.grade) : undefined;
+      const subjectId = context?.subject ? parseInt(context.subject) : undefined; // Note: subject passed as name usually, need ID lookup if exact match needed, but for prompt context name is fine
+
+      // Ideally we would look up IDs here, but for now let's pass the context directly to the prompt
+      // and update the conversation metadata if possible
+
+      const newConv = await createConversation(content, {
+        role: context?.role || 'student',
+        gradeId: gradeId,
+        subjectId: undefined // Would need subject ID lookup
+      });
+
       if (!newConv) return;
       conversationId = newConv.id;
     }
@@ -386,13 +405,16 @@ export function useChat() {
             messages: apiMessages,
             conversationId,
             documentContext,
+            role: context?.role,
+            grade: context?.grade,
+            subject: context?.subject,
           }),
         }
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get response');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error ${response.status}: ${errorData.details || 'Failed to get response'}`);
       }
 
       // Process streaming response

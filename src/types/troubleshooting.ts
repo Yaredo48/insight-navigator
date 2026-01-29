@@ -51,7 +51,7 @@ export interface TroubleshootingSession {
     status: SessionStatus;
     started_at: string;
     completed_at?: string;
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
 }
 
 export interface Badge {
@@ -126,7 +126,7 @@ export type BadgeId = keyof typeof BADGE_DEFINITIONS;
 export interface CreateSessionInput {
     conversation_id: string;
     flow_id?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 // Helper type for updating session progress
@@ -135,7 +135,7 @@ export interface UpdateSessionInput {
     step_history?: StepHistoryEntry[];
     status?: SessionStatus;
     completed_at?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 // Response type for step progression

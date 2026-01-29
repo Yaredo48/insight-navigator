@@ -34,57 +34,133 @@ export type Database = {
   }
   public: {
     Tables: {
-      conversations: {
+      badges: {
         Row: {
-          created_at: string
-          id: string
-          title: string | null
-          updated_at: string
+          created_at: string | null
+          criteria: Json
+          description: string | null
+          icon: string | null
+          id: number
+          name: string
         }
         Insert: {
-          created_at?: string
-          id?: string
-          title?: string | null
-          updated_at?: string
+          created_at?: string | null
+          criteria: Json
+          description?: string | null
+          icon?: string | null
+          id?: number
+          name: string
         }
         Update: {
-          created_at?: string
-          id?: string
-          title?: string | null
-          updated_at?: string
+          created_at?: string | null
+          criteria?: Json
+          description?: string | null
+          icon?: string | null
+          id?: number
+          name?: string
         }
         Relationships: []
       }
+      conversations: {
+        Row: {
+          created_at: string
+          grade_id: number | null
+          id: string
+          role: Database["public"]["Enums"]["user_role"] | null
+          subject_id: number | null
+          title: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          grade_id?: number | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"] | null
+          subject_id?: number | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          grade_id?: number | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"] | null
+          subject_id?: number | null
+          title?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
+          chapter: string | null
           conversation_id: string
           created_at: string
+          document_type: string | null
           extracted_text: string | null
           file_name: string
           file_size: number
           file_type: string
+          grade_id: number | null
           id: string
           storage_path: string
+          subject_id: number | null
+          topics: string[] | null
         }
         Insert: {
+          chapter?: string | null
           conversation_id: string
           created_at?: string
+          document_type?: string | null
           extracted_text?: string | null
           file_name: string
           file_size: number
           file_type: string
+          grade_id?: number | null
           id?: string
           storage_path: string
+          subject_id?: number | null
+          topics?: string[] | null
         }
         Update: {
+          chapter?: string | null
           conversation_id?: string
           created_at?: string
+          document_type?: string | null
           extracted_text?: string | null
           file_name?: string
           file_size?: number
           file_type?: string
+          grade_id?: number | null
           id?: string
           storage_path?: string
+          subject_id?: number | null
+          topics?: string[] | null
         }
         Relationships: [
           {
@@ -94,7 +170,39 @@ export type Database = {
             referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "documents_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      grades: {
+        Row: {
+          grade_number: number
+          id: number
+          name: string
+        }
+        Insert: {
+          grade_number: number
+          id?: number
+          name: string
+        }
+        Update: {
+          grade_number?: number
+          id?: number
+          name?: string
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -124,6 +232,152 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_progress: {
+        Row: {
+          created_at: string | null
+          current_streak: number | null
+          exercises_completed: number | null
+          grade_id: number | null
+          id: string
+          last_interaction_at: string | null
+          subject_id: number | null
+          topics_completed: Json | null
+          total_interactions: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_streak?: number | null
+          exercises_completed?: number | null
+          grade_id?: number | null
+          id?: string
+          last_interaction_at?: string | null
+          subject_id?: number | null
+          topics_completed?: Json | null
+          total_interactions?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_streak?: number | null
+          exercises_completed?: number | null
+          grade_id?: number | null
+          id?: string
+          last_interaction_at?: string | null
+          subject_id?: number | null
+          topics_completed?: Json | null
+          total_interactions?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_progress_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_progress_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subjects: {
+        Row: {
+          code: string
+          id: number
+          name: string
+        }
+        Insert: {
+          code: string
+          id?: number
+          name: string
+        }
+        Update: {
+          code?: string
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
+      teacher_resources: {
+        Row: {
+          content: Json | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          file_url: string | null
+          grade_id: number | null
+          id: string
+          resource_type: string | null
+          subject_id: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_url?: string | null
+          grade_id?: number | null
+          id?: string
+          resource_type?: string | null
+          subject_id?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          file_url?: string | null
+          grade_id?: number | null
+          id?: string
+          resource_type?: string | null
+          subject_id?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_resources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_resources_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_resources_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -209,6 +463,66 @@ export type Database = {
           },
         ]
       }
+      user_badges: {
+        Row: {
+          badge_id: number | null
+          earned_at: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          badge_id?: number | null
+          earned_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          badge_id?: number | null
+          earned_at?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_badges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_progress: {
         Row: {
           badges: Json | null
@@ -247,7 +561,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_role: "student" | "teacher"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -377,7 +691,9 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["student", "teacher"],
+    },
   },
 } as const
 

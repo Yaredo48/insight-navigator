@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 interface UserAction {
     type: 'upload_error' | 'api_error' | 'navigation' | 'feature_click' | 'idle';
     timestamp: number;
-    metadata?: any;
+    metadata?: unknown;
 }
 
 interface StruggleThresholds {
@@ -29,7 +29,7 @@ export function useAutoSolution() {
     const suggestionsShown = useRef<Set<string>>(new Set());
 
     // Track a user action
-    const trackAction = useCallback((type: UserAction['type'], metadata?: any) => {
+    const trackAction = useCallback((type: UserAction['type'], metadata?: unknown) => {
         const timestamp = Date.now();
         lastActionTime.current = timestamp;
 

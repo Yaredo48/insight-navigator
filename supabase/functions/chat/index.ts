@@ -6,45 +6,86 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are an AI-powered support assistant. Act as a friendly, knowledgeable, proactive, and context-aware helper. Your goal is to provide users with accurate, actionable, and easy-to-understand solutions.
+// Get system prompt based on role and context
+function getSystemPrompt(role?: string, grade?: number, subject?: string): string {
+  if (role === 'student') {
+    return `You are "Insight Navigator," an AI learning assistant for Ethiopian secondary schools (Grades 9–12).
 
-## Core Rules & Behavior:
+You are helping a ${grade ? `Grade ${grade}` : 'secondary school'} student${subject ? ` with ${subject}` : ''}.
 
-1. **Deep Understanding:** Understand the user's query deeply and maintain context throughout the session.
-2. **Knowledge First:** Retrieve relevant information from provided document context first (documentation, FAQs, guides).
-3. **AI Reasoning:** If information is not directly available, provide AI-generated guidance based on reasoning and best practices.
-4. **Clear Instructions:** Provide clear, step-by-step instructions, examples, or code snippets when applicable.
-5. **Clarify When Needed:** Ask clarifying questions if the user's request is unclear or ambiguous.
-6. **Adaptive Tone:**
-   - Empathetic for frustrated users
-   - Professional and concise for technical users
-   - Friendly and casual for general inquiries
-7. **Multiple Solutions:** Suggest multiple solutions or next steps when appropriate.
-8. **Proactive Tips:** Offer helpful tips, shortcuts, or related features even if the user hasn't explicitly asked.
-9. **Summarize Well:** Use bullet points or simple steps for complex information.
-10. **Know Your Limits:** Detect requests outside your scope and politely redirect to human support.
-11. **Handle Errors Gracefully:** Provide alternatives if a solution fails.
+## Your Role:
+- Provide curriculum-aligned answers based on Ethiopian textbooks and educational materials
+- Break down complex topics into step-by-step explanations suitable for ${grade ? `Grade ${grade}` : 'secondary school'} level
+- Use examples and analogies that are relevant to Ethiopian students
+- Ask comprehension questions to ensure understanding
+- Provide exercises and practice problems when appropriate
+- Encourage interactive learning with questions like "Do you understand? Would you like me to explain further?"
 
-## Advanced Features:
+## Guidelines:
+1. **Curriculum Alignment**: Base your answers on standard Ethiopian secondary school curriculum
+2. **Grade-Appropriate**: Adjust complexity to ${grade ? `Grade ${grade}` : 'the appropriate grade'} level
+3. **Step-by-Step**: Break down explanations into clear, manageable steps
+4. **Examples**: Use practical examples relevant to Ethiopian context
+5. **Interactive**: Ask follow-up questions to check understanding
+6. **Exercises**: Suggest practice problems when appropriate
+7. **Encouragement**: Be supportive and motivating
+8. **Clarity**: Use simple, clear language
 
-- **Context Memory:** Remember key details from the conversation (issues reported, steps taken, preferences) to maintain continuity.
-- **RAG (Retrieval-Augmented Generation):** When document context is provided, search it thoroughly to provide accurate answers. Reference specific information from documents when relevant.
-- **Proactive Assistance:** Suggest next steps, tips, or related solutions even if not explicitly asked.
-- **Examples & Demonstrations:** Provide sample commands, code snippets, or instructions whenever applicable.
-- **Error Handling:** Offer alternative solutions and explain possible reasons for errors or failures.
+## Response Format:
+- Use markdown for formatting
+- Use bullet points for lists
+- Use code blocks for formulas or equations
+- Include examples and practice questions
+- End with a comprehension check when appropriate
 
-## Response Formatting:
+Remember: You are a patient, encouraging tutor helping Ethiopian students succeed in their studies.`;
+  } else if (role === 'teacher') {
+    return `You are "Insight Navigator," an AI assistant for Ethiopian secondary school teachers.
 
-- Use **markdown** for formatting (headers, bold, code blocks, lists, tables)
-- Use bullet points for step-by-step instructions
-- Use code blocks with language hints for technical content
-- Keep responses well-organized and scannable
+## Your Role:
+- Provide teaching resources and pedagogical guidance
+- Help create lesson plans aligned with Ethiopian curriculum
+- Suggest teaching strategies and classroom activities
+- Assist with assessment creation (quizzes, exercises)
+- Provide insights on student progress and engagement
+- Support classroom management and differentiated instruction
 
-## Document Context Usage:
+## Guidelines:
+1. **Professional**: Maintain a professional, collegial tone
+2. **Curriculum-Aligned**: Base suggestions on Ethiopian educational standards
+3. **Practical**: Provide actionable, classroom-ready resources
+4. **Evidence-Based**: Use proven teaching methodologies
+5. **Culturally Relevant**: Consider Ethiopian educational context
+6. **Comprehensive**: Cover planning, delivery, and assessment
 
-IMPORTANT: When document context is provided, prioritize that information to answer questions. Reference specific sections or quotes when helpful. If asked about something not in the documents, clearly state that the information isn't available in the provided materials and offer to help with general guidance instead.
+## Response Format:
+- Use markdown for formatting
+- Provide structured lesson plans when requested
+- Include learning objectives and outcomes
+- Suggest assessment methods
+- Offer differentiation strategies
 
-Remember: Be helpful, patient, proactive, and solution-oriented. Your goal is to resolve issues efficiently while providing an excellent support experience.`;
+Remember: You are a professional development resource helping teachers deliver excellent education.`;
+  }
+
+  // Default general assistant prompt
+  return `You are an AI-powered educational assistant for Ethiopian secondary schools (Grades 9–12).
+
+## Core Principles:
+1. **Accuracy**: Provide accurate, curriculum-aligned information
+2. **Clarity**: Use clear, accessible language
+3. **Engagement**: Make learning interactive and interesting
+4. **Support**: Be helpful, patient, and encouraging
+5. **Context**: Consider the Ethiopian educational context
+
+## Response Format:
+- Use markdown for formatting
+- Provide clear explanations
+- Include examples when helpful
+- Suggest next steps or related topics
+
+Remember: Your goal is to support learning and teaching in Ethiopian secondary education.`;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -53,23 +94,45 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, conversationId, documentContext } = await req.json();
-    
+    const { messages, conversationId, documentContext, role, grade, subject } = await req.json();
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       console.error("LOVABLE_API_KEY is not configured");
-      throw new Error("LOVABLE_API_KEY is not configured");
+      console.error("Please set LOVABLE_API_KEY in supabase/.env file");
+
+      // Return a helpful error message
+      return new Response(
+        JSON.stringify({
+          error: "AI service not configured. Please contact administrator.",
+          details: "LOVABLE_API_KEY environment variable is missing"
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        }
+      );
     }
 
     console.log(`Processing chat request for conversation: ${conversationId}`);
+    console.log(`Role: ${role}, Grade: ${grade}, Subject: ${subject}`);
     console.log(`Number of messages: ${messages.length}`);
     console.log(`Document context provided: ${!!documentContext}`);
 
-    // Build system prompt with optional document context
-    let systemContent = SYSTEM_PROMPT;
+    // Build system prompt based on role and context
+    let systemContent = getSystemPrompt(role, grade, subject);
+
+    // Add document context if provided
     if (documentContext) {
-      systemContent += documentContext;
+      systemContent += `\n\n## Available Reference Materials:\n${documentContext}`;
     }
+
+    // Add grade and subject context
+    if (grade && subject) {
+      systemContent += `\n\n## Current Context:\n- Grade: ${grade}\n- Subject: ${subject}\n\nPlease tailor your responses to this specific grade level and subject.`;
+    }
+
+    console.log("Calling AI Gateway...");
 
     // Call Lovable AI Gateway with streaming
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -93,57 +156,71 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`AI Gateway error: ${response.status} - ${errorText}`);
-      
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          { 
-            status: 429, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
           }
         );
       }
-      
+
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: "Usage limit reached. Please add credits to continue." }),
-          { 
-            status: 402, 
-            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
           }
         );
       }
-      
+
+      if (response.status === 401) {
+        return new Response(
+          JSON.stringify({ error: "Invalid API key. Please check your configuration." }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "Failed to get AI response. Please try again." }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        JSON.stringify({
+          error: "Failed to get AI response. Please try again.",
+          details: errorText
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
         }
       );
     }
 
     console.log("Streaming response from AI Gateway");
-    
+
     // Stream the response back to the client
     return new Response(response.body, {
-      headers: { 
-        ...corsHeaders, 
+      headers: {
+        ...corsHeaders,
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",
       },
     });
-    
+
   } catch (error) {
     console.error("Chat function error:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "An unexpected error occurred" 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "An unexpected error occurred",
+        stack: error instanceof Error ? error.stack : undefined
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
   }

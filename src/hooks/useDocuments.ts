@@ -23,10 +23,10 @@ export function useDocuments(conversationId: string | null) {
     try {
       // Dynamically import pdfjs-dist to avoid top-level await issues
       const pdfjsLib = await import('pdfjs-dist');
-      
+
       // Set worker source
       pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-      
+
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const textParts: string[] = [];
@@ -35,7 +35,7 @@ export function useDocuments(conversationId: string | null) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
-          .map((item: any) => item.str)
+          .map((item: unknown) => (item as { str: string }).str || '')
           .join(' ');
         textParts.push(pageText);
       }
@@ -96,7 +96,7 @@ export function useDocuments(conversationId: string | null) {
       'text/markdown',
       'text/csv',
     ];
-    
+
     if (!allowedTypes.includes(file.type) && !file.name.endsWith('.md') && !file.name.endsWith('.txt')) {
       toast({
         title: 'Invalid file type',
@@ -146,7 +146,7 @@ export function useDocuments(conversationId: string | null) {
       }
 
       setDocuments(prev => [data, ...prev]);
-      
+
       toast({
         title: 'Document uploaded',
         description: `${file.name} is ready for questions`,
@@ -181,7 +181,7 @@ export function useDocuments(conversationId: string | null) {
       if (error) throw error;
 
       setDocuments(prev => prev.filter(d => d.id !== documentId));
-      
+
       toast({
         title: 'Document deleted',
         description: 'The document has been removed',

@@ -169,84 +169,13 @@ export function useTroubleshooting() {
         }
     }, [toast]);
 
-    // Respond to a step (yes/no)
-    const respondToStep = useCallback(async (
-        sessionId: string,
-        response: 'yes' | 'no'
-    ): Promise<boolean> => {
-        if (!activeSession || !currentFlow) return false;
-
-        setIsLoading(true);
-
-        try {
-            const currentStep = currentFlow.steps[activeSession.current_step_index];
-
-            // Add to step history
-            const newHistoryEntry: StepHistoryEntry = {
-                stepId: currentStep.id,
-                response,
-                timestamp: new Date().toISOString(),
-            };
-
-            const updatedHistory = [...activeSession.step_history, newHistoryEntry];
-
-            // Determine next step based on response
-            let nextStepId: string | undefined;
-
-            if (currentStep.type === 'yes_no' && currentStep.branches) {
-                nextStepId = currentStep.branches[response];
-            } else if (currentStep.next) {
-                nextStepId = currentStep.next;
-            }
-
-            // Find next step index
-            const nextStepIndex = nextStepId
-                ? currentFlow.steps.findIndex(s => s.id === nextStepId)
-                : -1;
-
-            if (nextStepIndex === -1) {
-                // No next step, complete the session
-                await completeSession(sessionId);
-                return true;
-            }
-
-            // Update session
-            const { error } = await supabase
-                .from('troubleshooting_sessions')
-                .update({
-                    current_step_index: nextStepIndex,
-                    step_history: updatedHistory as unknown as undefined, // Type cast for Json
-                })
-                .eq('id', sessionId);
-
-            if (error) {
-                console.error('Error updating session:', error);
-                return false;
-            }
-
-            // Update local state
-            setActiveSession({
-                ...activeSession,
-                current_step_index: nextStepIndex,
-                step_history: updatedHistory,
-            });
-
-            return true;
-        } catch (error) {
-            console.error('Error responding to step:', error);
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [activeSession, currentFlow]);
-
     // Complete a session
     const completeSession = useCallback(async (sessionId: string): Promise<void> => {
         if (!activeSession) return;
 
         const completedAt = new Date().toISOString();
         const startedAt = activeSession.metadata?.started_at || activeSession.started_at;
-        const duration = new Date(completedAt).getTime() - new Date(startedAt).getTime();
+        const duration = new Date(completedAt).getTime() - new Date(startedAt as string).getTime();
         const durationMinutes = duration / 1000 / 60;
 
         // Update session status
@@ -367,6 +296,77 @@ export function useTroubleshooting() {
             description: 'Great job troubleshooting! 🎉',
         });
     }, [activeSession, userProgress, toast, loadUserProgress]);
+
+    // Respond to a step (yes/no)
+    const respondToStep = useCallback(async (
+        sessionId: string,
+        response: 'yes' | 'no'
+    ): Promise<boolean> => {
+        if (!activeSession || !currentFlow) return false;
+
+        setIsLoading(true);
+
+        try {
+            const currentStep = currentFlow.steps[activeSession.current_step_index];
+
+            // Add to step history
+            const newHistoryEntry: StepHistoryEntry = {
+                stepId: currentStep.id,
+                response,
+                timestamp: new Date().toISOString(),
+            };
+
+            const updatedHistory = [...activeSession.step_history, newHistoryEntry];
+
+            // Determine next step based on response
+            let nextStepId: string | undefined;
+
+            if (currentStep.type === 'yes_no' && currentStep.branches) {
+                nextStepId = currentStep.branches[response];
+            } else if (currentStep.next) {
+                nextStepId = currentStep.next;
+            }
+
+            // Find next step index
+            const nextStepIndex = nextStepId
+                ? currentFlow.steps.findIndex(s => s.id === nextStepId)
+                : -1;
+
+            if (nextStepIndex === -1) {
+                // No next step, complete the session
+                await completeSession(sessionId);
+                return true;
+            }
+
+            // Update session
+            const { error } = await supabase
+                .from('troubleshooting_sessions')
+                .update({
+                    current_step_index: nextStepIndex,
+                    step_history: updatedHistory as unknown as undefined, // Type cast for Json
+                })
+                .eq('id', sessionId);
+
+            if (error) {
+                console.error('Error updating session:', error);
+                return false;
+            }
+
+            // Update local state
+            setActiveSession({
+                ...activeSession,
+                current_step_index: nextStepIndex,
+                step_history: updatedHistory,
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error responding to step:', error);
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [activeSession, currentFlow, completeSession]);
 
     // Abandon a session
     const abandonSession = useCallback(async (sessionId: string): Promise<void> => {
