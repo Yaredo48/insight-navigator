@@ -44,7 +44,7 @@ export function useTroubleshooting() {
         }
 
         if (data) {
-            setUserProgress(data as UserProgress);
+            setUserProgress(data as unknown as UserProgress);
         } else {
             // Create initial progress record
             const { data: newProgress, error: createError } = await supabase
@@ -63,7 +63,7 @@ export function useTroubleshooting() {
                 return;
             }
 
-            setUserProgress(newProgress as UserProgress);
+            setUserProgress(newProgress as unknown as UserProgress);
         }
     }, []);
 
@@ -89,16 +89,20 @@ export function useTroubleshooting() {
                     .select('*');
 
                 if (flows && flows.length > 0) {
+                    const typedFlows = flows as unknown as TroubleshootingFlowData[];
                     // Match keywords to categories
                     if (lowerIssue.includes('turn on') || lowerIssue.includes('power') || lowerIssue.includes('device')) {
-                        flow = flows.find(f => f.category === 'device') || flows[0];
+                        flow = typedFlows.find(f => f.category === 'device') || typedFlows[0];
                     } else if (lowerIssue.includes('internet') || lowerIssue.includes('wifi') || lowerIssue.includes('connection')) {
-                        flow = flows.find(f => f.category === 'connection') || flows[0];
+                        flow = typedFlows.find(f => f.category === 'connection') || typedFlows[0];
+                    } else if (lowerIssue.includes('upload') || lowerIssue.includes('file') || lowerIssue.includes('document')) {
+                        flow = typedFlows.find(f => f.category === 'upload') || typedFlows[0];
                     } else {
-                        flow = flows[0]; // Default to first flow
+                        // For generic "Start Guide" or unknown issues, try to find a general flow or default to the first one
+                        flow = typedFlows.find(f => f.category === 'general') || typedFlows[0];
                     }
 
-                    selectedFlowId = flow.id;
+                    selectedFlowId = flow?.id;
                 }
             } else if (selectedFlowId) {
                 // Load the specified flow
@@ -108,7 +112,7 @@ export function useTroubleshooting() {
                     .eq('id', selectedFlowId)
                     .single();
 
-                flow = flowData as TroubleshootingFlowData;
+                flow = flowData as unknown as TroubleshootingFlowData;
             }
 
             if (!selectedFlowId || !flow) {
@@ -147,7 +151,7 @@ export function useTroubleshooting() {
                 return null;
             }
 
-            const newSession = session as TroubleshootingSession;
+            const newSession = session as unknown as TroubleshootingSession;
             setActiveSession(newSession);
             setCurrentFlow(flow);
 
@@ -211,7 +215,7 @@ export function useTroubleshooting() {
                 .from('troubleshooting_sessions')
                 .update({
                     current_step_index: nextStepIndex,
-                    step_history: updatedHistory,
+                    step_history: updatedHistory as unknown as undefined, // Type cast for Json
                 })
                 .eq('id', sessionId);
 
@@ -346,7 +350,7 @@ export function useTroubleshooting() {
             .from('user_progress')
             .update({
                 flows_completed: newFlowsCompleted,
-                badges: newBadges,
+                badges: newBadges as unknown as undefined, // Type cast for Json
                 last_active: completedAt,
             })
             .eq('user_id', userId);
@@ -389,7 +393,7 @@ export function useTroubleshooting() {
             .single();
 
         if (session) {
-            setActiveSession(session as TroubleshootingSession);
+            setActiveSession(session as unknown as TroubleshootingSession);
 
             // Load the flow
             if (session.flow_id) {
@@ -400,7 +404,7 @@ export function useTroubleshooting() {
                     .single();
 
                 if (flow) {
-                    setCurrentFlow(flow as TroubleshootingFlowData);
+                    setCurrentFlow(flow as unknown as TroubleshootingFlowData);
                 }
             }
         }

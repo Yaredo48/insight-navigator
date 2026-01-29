@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -107,6 +127,117 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      troubleshooting_flows: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          steps: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          steps: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          steps?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      troubleshooting_sessions: {
+        Row: {
+          completed_at: string | null
+          conversation_id: string
+          current_step_index: number | null
+          flow_id: string | null
+          id: string
+          metadata: Json | null
+          started_at: string
+          status: string | null
+          step_history: Json | null
+        }
+        Insert: {
+          completed_at?: string | null
+          conversation_id: string
+          current_step_index?: number | null
+          flow_id?: string | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          status?: string | null
+          step_history?: Json | null
+        }
+        Update: {
+          completed_at?: string | null
+          conversation_id?: string
+          current_step_index?: number | null
+          flow_id?: string | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          status?: string | null
+          step_history?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "troubleshooting_sessions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "troubleshooting_sessions_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "troubleshooting_flows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_progress: {
+        Row: {
+          badges: Json | null
+          created_at: string
+          flows_completed: number | null
+          id: string
+          last_active: string
+          tips_unlocked: Json | null
+          user_id: string
+        }
+        Insert: {
+          badges?: Json | null
+          created_at?: string
+          flows_completed?: number | null
+          id?: string
+          last_active?: string
+          tips_unlocked?: Json | null
+          user_id: string
+        }
+        Update: {
+          badges?: Json | null
+          created_at?: string
+          flows_completed?: number | null
+          id?: string
+          last_active?: string
+          tips_unlocked?: Json | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -242,7 +373,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+

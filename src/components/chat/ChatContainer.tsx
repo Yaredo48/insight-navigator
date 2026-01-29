@@ -35,6 +35,7 @@ interface ChatContainerProps {
   onDeleteDocument?: (id: string, storagePath: string) => void;
   isUploading?: boolean;
   currentConversationId?: string;
+  onCreateConversation?: () => Promise<string | null>;
 }
 
 export function ChatContainer({
@@ -51,6 +52,7 @@ export function ChatContainer({
   onDeleteDocument,
   isUploading = false,
   currentConversationId,
+  onCreateConversation,
 }: ChatContainerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
@@ -63,6 +65,13 @@ export function ChatContainer({
     loadActiveSession,
   } = useTroubleshooting();
 
+  // Load active session when conversation changes
+  useEffect(() => {
+    if (currentConversationId) {
+      loadActiveSession(currentConversationId);
+    }
+  }, [currentConversationId, loadActiveSession]);
+
   // Listen for proactive troubleshooting triggers
   useEffect(() => {
     const handleTrigger = async (e: CustomEvent<{ issue: string }>) => {
@@ -74,7 +83,7 @@ export function ChatContainer({
     return () => {
       window.removeEventListener('trigger-troubleshooting', handleTrigger as EventListener);
     };
-  }, [currentConversationId, startFlow]);
+  }, [currentConversationId, startFlow, onCreateConversation]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -84,9 +93,17 @@ export function ChatContainer({
   }, [messages]);
 
   const handleStartTroubleshooting = async (issue: string) => {
-    if (!currentConversationId) return;
+    let convId = currentConversationId;
 
-    const session = await startFlow(currentConversationId, undefined, issue);
+    // Create conversation if it doesn't exist
+    if (!convId && onCreateConversation) {
+      const newId = await onCreateConversation();
+      if (newId) convId = newId;
+    }
+
+    if (!convId) return;
+
+    const session = await startFlow(convId, undefined, issue);
 
     if (session) {
       // Send a special message to trigger troubleshooting flow display
@@ -101,7 +118,7 @@ export function ChatContainer({
   ];
 
   return (
-    <div className="flex flex-1 flex-col bg-background">
+    <div className="flex flex-1 flex-col bg-transparent">
       <ChatHeader
         isStreaming={isStreaming}
         hasMessages={messages.length > 0}
@@ -112,7 +129,7 @@ export function ChatContainer({
 
       {/* Progress Tracker (shown when there's an active session) */}
       {activeSession && currentFlow && (
-        <div className="border-b border-border bg-secondary/30 px-6 py-3">
+        <div className="border-b border-white/10 bg-white/5 backdrop-blur-sm px-6 py-3">
           <ProgressTracker
             userProgress={userProgress}
             currentStepIndex={activeSession.current_step_index}
@@ -172,37 +189,64 @@ export function ChatContainer({
             transition={{ duration: 0.5 }}
             className="flex h-full flex-col items-center justify-center p-8"
           >
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 mb-6">
-              <Bot className="h-10 w-10 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.4, type: "spring" }}
+              className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border-2 border-indigo-500/30 mb-6 shadow-xl"
+            >
+              <Bot className="h-12 w-12 text-indigo-400" />
+            </motion.div>
+            <motion.h3
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-2xl font-bold text-foreground mb-3 bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600"
+            >
               How can I help you today?
-            </h3>
-            <p className="text-muted-foreground text-center max-w-md mb-8">
+            </motion.h3>
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="text-muted-foreground text-center max-w-md mb-10 leading-relaxed"
+            >
               I'm your AI-powered support assistant. Ask me anything about our products,
               services, or get help with any issues you're experiencing.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 max-w-xl w-full">
-              {troubleshootingSuggestions.map((suggestion) => (
-                <button
+            </motion.p>
+            <div className="grid gap-3 sm:grid-cols-2 max-w-2xl w-full">
+              {troubleshootingSuggestions.map((suggestion, index) => (
+                <motion.button
                   key={suggestion}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 + index * 0.1 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => handleStartTroubleshooting(suggestion)}
-                  className="rounded-lg border border-border bg-card p-4 text-left text-sm transition-colors hover:bg-secondary hover:border-accent flex items-start gap-2"
+                  className="group rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5 text-left text-sm transition-all duration-300 hover:bg-white/10 hover:border-indigo-400/50 hover:shadow-lg flex items-start gap-3"
                 >
-                  <Wrench className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                  <span>{suggestion}</span>
-                </button>
+                  <div className="p-2 rounded-lg bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors">
+                    <Wrench className="h-4 w-4 text-indigo-400 flex-shrink-0" />
+                  </div>
+                  <span className="text-foreground/80 group-hover:text-foreground font-medium">{suggestion}</span>
+                </motion.button>
               ))}
-              <button
+              <motion.button
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + troubleshootingSuggestions.length * 0.1 }}
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => onSendMessage('What services do you offer?')}
-                className="rounded-lg border border-border bg-card p-4 text-left text-sm transition-colors hover:bg-secondary hover:border-accent"
+                className="group rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm p-5 text-left text-sm transition-all duration-300 hover:bg-white/10 hover:border-purple-400/50 hover:shadow-lg"
               >
-                What services do you offer?
-              </button>
+                <span className="text-foreground/80 group-hover:text-foreground font-medium">What services do you offer?</span>
+              </motion.button>
             </div>
           </motion.div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="space-y-0">
             {messages.map((message, index) => (
               <EnhancedChatMessage
                 key={message.id}
