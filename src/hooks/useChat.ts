@@ -340,15 +340,12 @@ export function useChat() {
     if (!conversationId) {
       // Parse IDs from context if available
       const gradeId = context?.grade ? parseInt(context.grade) : undefined;
-      const subjectId = context?.subject ? parseInt(context.subject) : undefined; // Note: subject passed as name usually, need ID lookup if exact match needed, but for prompt context name is fine
-
-      // Ideally we would look up IDs here, but for now let's pass the context directly to the prompt
-      // and update the conversation metadata if possible
+      const subjectId = context?.subject ? parseInt(context.subject) : undefined;
 
       const newConv = await createConversation(content, {
         role: context?.role || 'student',
         gradeId: gradeId,
-        subjectId: undefined // Would need subject ID lookup
+        subjectId: undefined
       });
 
       if (!newConv) return;
@@ -358,6 +355,9 @@ export function useChat() {
     setIsLoading(true);
     setIsStreaming(true);
 
+    // Capture current messages before adding user message (fix race condition)
+    const currentMessages = [...messages];
+    
     // Add user message optimistically
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -386,8 +386,8 @@ export function useChat() {
       );
     }
 
-    // Prepare messages for API (include full history for context)
-    const apiMessages = [...messages, userMessage].map(m => ({
+    // Prepare messages for API (use captured messages to avoid stale closure)
+    const apiMessages = [...currentMessages, userMessage].map(m => ({
       role: m.role,
       content: m.content,
     }));

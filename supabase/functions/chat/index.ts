@@ -187,6 +187,20 @@ serve(async (req) => {
         );
       }
 
+      // Handle 503 and other server errors
+      if (response.status >= 500) {
+        return new Response(
+          JSON.stringify({ 
+            error: "AI service temporarily unavailable. Please try again in a few moments.",
+            details: "The AI service is experiencing issues. This is usually temporary."
+          }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          }
+        );
+      }
+
       return new Response(
         JSON.stringify({
           error: "Failed to get AI response. Please try again.",

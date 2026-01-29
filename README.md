@@ -1,73 +1,161 @@
-# Welcome to your Lovable project
+# Insight Navigator
 
-## Project info
+An AI-powered educational assistant for Ethiopian secondary schools (Grades 9-12), built with React, TypeScript, Supabase, and Lovable.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Project Structure
 
-## How can I edit this code?
+```
+insight-navigator/
+├── src/
+│   ├── components/     # React components
+│   │   ├── chat/       # Chat-related components
+│   │   ├── student/    # Student dashboard components
+│   │   ├── teacher/    # Teacher dashboard components
+│   │   └── ui/         # shadcn-ui components
+│   ├── hooks/          # Custom React hooks
+│   ├── pages/          # Page components
+│   ├── integrations/   # Supabase client configuration
+│   └── types/          # TypeScript type definitions
+├── supabase/
+│   ├── functions/      # Edge Functions (serverless)
+│   │   └── chat/       # Chat AI Edge Function
+│   └── migrations/     # Database migrations
+└── public/             # Static assets
+```
 
-There are several ways of editing your application.
+## Getting Started
 
-**Use Lovable**
+### Prerequisites
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- Node.js 18+ and npm
+- Supabase CLI
+- A Supabase account
+- A Lovable API key (for AI features)
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Local Development
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+This will start the Vite development server. For full functionality, you'll also need to run Supabase locally:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+# Start Supabase local instance
+supabase start
 
-**Use GitHub Codespaces**
+# Or use the combined command
+npm run dev:full
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Environment Configuration
 
-## What technologies are used for this project?
+The project uses two `.env` files:
 
-This project is built with:
+1. **`.env`** - Frontend environment variables (VITE_*)
+2. **`supabase/.env`** - Supabase Edge Function environment variables
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+For local development, the default `.env` values work with the local Supabase instance.
 
-## How can I deploy this project?
+## Supabase Setup
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Running Migrations
 
-## Can I connect a custom domain to my Lovable project?
+Database migrations are in `supabase/migrations/`. When Supabase is running locally, migrations are automatically applied.
 
-Yes, you can!
+For remote Supabase, run:
+```sh
+supabase migration up
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Deploying Edge Functions
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+The chat functionality uses a Supabase Edge Function that calls the Lovable AI Gateway.
+
+**To deploy the Edge Function:**
+
+1. Set up Supabase CLI and login:
+   ```sh
+   npm install -g supabase
+   supabase login
+   ```
+
+2. Link to your remote Supabase project:
+   ```sh
+   supabase link --project-ref aoiasqbyctciwpfskapp
+   ```
+
+3. Deploy the chat function:
+   ```sh
+   supabase functions deploy chat
+   ```
+
+4. Set the Lovable API key as a secret:
+   ```sh
+   supabase secrets set LOVABLE_API_KEY=your_lovable_api_key_here
+   ```
+
+### Getting Your Lovable API Key
+
+1. Visit [Lovable](https://lovable.dev) and sign in
+2. Go to your project settings
+3. Copy your API key
+4. Set it using: `supabase secrets set LOVABLE_API_KEY=your_key`
+
+### Switching to Remote Supabase
+
+To use the deployed Edge Functions, update `.env`:
+
+```env
+# Comment out local values
+# VITE_SUPABASE_URL="http://127.0.0.1:54321"
+# VITE_SUPABASE_PUBLISHABLE_KEY="..."
+
+# Use remote values
+VITE_SUPABASE_URL="https://aoiasqbyctciwpfskapp.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvaWFzcWJ5Y3RjaXdwZnNrYXBwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1OTAxMTAsImV4cCI6MjA4NTE2NjExMH0.Bi6WAK8Pa51lalgX6YU-7nMEn7mm_fgb2QaPQiGxUFc"
+```
+
+## Troubleshooting
+
+### Error 503: Failed to get response
+
+This error occurs when:
+1. The Edge Function is not deployed
+2. The `LOVABLE_API_KEY` is not set
+3. The AI service is temporarily unavailable
+
+**Solutions:**
+- Ensure the Edge Function is deployed: `supabase functions deploy chat`
+- Check the API key is set: `supabase secrets list`
+- If using local Supabase, Edge Functions won't work - deploy to remote Supabase
+
+### Error 401: Invalid API key
+
+The Lovable API key is incorrect or missing. Get a new key from Lovable and set it:
+```sh
+supabase secrets set LOVABLE_API_KEY=your_new_key
+```
+
+### Rate limit exceeded (429)
+
+Wait a moment and try again, or upgrade your Lovable plan for higher limits.
+
+## Technologies Used
+
+- **Frontend**: Vite, React 18, TypeScript
+- **Styling**: Tailwind CSS, shadcn-ui
+- **Database**: Supabase (PostgreSQL)
+- **Real-time**: Supabase Realtime
+- **AI**: Lovable AI Gateway (google/gemini-3-flash)
+- **Deployment**: Supabase Edge Functions
+
+## License
+
+MIT
