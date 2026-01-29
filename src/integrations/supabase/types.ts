@@ -216,8 +216,6 @@ export type Database = {
           },
         ]
       }
-<<<<<<< HEAD
-=======
       student_progress: {
         Row: {
           created_at: string | null
@@ -364,37 +362,6 @@ export type Database = {
           },
         ]
       }
-      troubleshooting_flows: {
-        Row: {
-          category: string | null
-          created_at: string
-          description: string | null
-          id: string
-          steps: Json
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          steps: Json
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          steps?: Json
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
->>>>>>> 9ad0ccf (Implement student and teacher roles with dedicated dashboards, new database schema for user profiles and education data, and related UI components.)
       troubleshooting_sessions: {
         Row: {
           completed_at: string | null
@@ -437,9 +404,15 @@ export type Database = {
             referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "troubleshooting_sessions_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "troubleshooting_templates"
+            referencedColumns: ["id"]
+          },
         ]
       }
-<<<<<<< HEAD
       troubleshooting_templates: {
         Row: {
           category: string
@@ -467,7 +440,9 @@ export type Database = {
           steps?: Json
           title?: string
           updated_at?: string
-=======
+        }
+        Relationships: []
+      }
       user_badges: {
         Row: {
           badge_id: number | null
@@ -525,7 +500,6 @@ export type Database = {
           name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string | null
->>>>>>> 9ad0ccf (Implement student and teacher roles with dedicated dashboards, new database schema for user profiles and education data, and related UI components.)
         }
         Relationships: []
       }
@@ -577,7 +551,7 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof DatabaseWithoutInternals, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -659,20 +633,20 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
+  PublicEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends PublicEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[PublicEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
+> = PublicEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][PublicEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
