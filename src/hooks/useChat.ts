@@ -345,7 +345,7 @@ export function useChat() {
       const newConv = await createConversation(content, {
         role: context?.role || 'student',
         gradeId: gradeId,
-        subjectId: undefined
+        subjectId: subjectId
       });
 
       if (!newConv) return;
