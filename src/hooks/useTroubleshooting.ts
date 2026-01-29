@@ -8,7 +8,6 @@ import {
     StepHistoryEntry,
     Badge,
     BADGE_DEFINITIONS,
-    BadgeId,
 } from '@/types/troubleshooting';
 
 // Generate a simple user ID for anonymous users (stored in localStorage)
@@ -36,9 +35,9 @@ export function useTroubleshooting() {
             .from('user_progress')
             .select('*')
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        if (error) {
             console.error('Error loading user progress:', error);
             return;
         }
@@ -85,21 +84,20 @@ export function useTroubleshooting() {
                 const lowerIssue = issueDescription.toLowerCase();
 
                 const { data: flows } = await supabase
-                    .from('troubleshooting_flows')
+                    .from('troubleshooting_templates')
                     .select('*');
 
                 if (flows && flows.length > 0) {
-                    const typedFlows = flows as unknown as TroubleshootingFlowData[];
                     // Match keywords to categories
                     if (lowerIssue.includes('turn on') || lowerIssue.includes('power') || lowerIssue.includes('device')) {
-                        flow = typedFlows.find(f => f.category === 'device') || typedFlows[0];
-                    } else if (lowerIssue.includes('internet') || lowerIssue.includes('wifi') || lowerIssue.includes('connection')) {
-                        flow = typedFlows.find(f => f.category === 'connection') || typedFlows[0];
-                    } else if (lowerIssue.includes('upload') || lowerIssue.includes('file') || lowerIssue.includes('document')) {
-                        flow = typedFlows.find(f => f.category === 'upload') || typedFlows[0];
+                        flow = flows.find((f: any) => f.category === 'power') as unknown as TroubleshootingFlowData || flows[0] as unknown as TroubleshootingFlowData;
+                    } else if (lowerIssue.includes('internet') || lowerIssue.includes('wifi') || lowerIssue.includes('connection') || lowerIssue.includes('connect')) {
+                        flow = flows.find((f: any) => f.category === 'connectivity') as unknown as TroubleshootingFlowData || flows[0] as unknown as TroubleshootingFlowData;
+                    } else if (lowerIssue.includes('app') || lowerIssue.includes('load') || lowerIssue.includes('software')) {
+                        flow = flows.find((f: any) => f.category === 'software') as unknown as TroubleshootingFlowData || flows[0] as unknown as TroubleshootingFlowData;
                     } else {
-                        // For generic "Start Guide" or unknown issues, try to find a general flow or default to the first one
-                        flow = typedFlows.find(f => f.category === 'general') || typedFlows[0];
+                        // Default to first flow
+                        flow = flows[0] as unknown as TroubleshootingFlowData;
                     }
 
                     selectedFlowId = flow?.id;
@@ -107,7 +105,7 @@ export function useTroubleshooting() {
             } else if (selectedFlowId) {
                 // Load the specified flow
                 const { data: flowData } = await supabase
-                    .from('troubleshooting_flows')
+                    .from('troubleshooting_templates')
                     .select('*')
                     .eq('id', selectedFlowId)
                     .single();
@@ -115,12 +113,13 @@ export function useTroubleshooting() {
                 flow = flowData as unknown as TroubleshootingFlowData;
             }
 
-            if (!selectedFlowId || !flow) {
+            if (!flow) {
                 toast({
                     title: 'Error',
                     description: 'No troubleshooting flow found for this issue',
                     variant: 'destructive',
                 });
+                setIsLoading(false);
                 return null;
             }
 
@@ -129,7 +128,7 @@ export function useTroubleshooting() {
                 .from('troubleshooting_sessions')
                 .insert({
                     conversation_id: conversationId,
-                    flow_id: selectedFlowId,
+                    flow_id: flow.id,
                     current_step_index: 0,
                     step_history: [],
                     status: 'active',
@@ -168,6 +167,103 @@ export function useTroubleshooting() {
             setIsLoading(false);
         }
     }, [toast]);
+
+    // Respond to a step (yes/no or continue)
+    const respondToStep = useCallback(async (
+        sessionId: string,
+        response: 'yes' | 'no'
+    ): Promise<boolean> => {
+        if (!activeSession || !currentFlow) return false;
+
+        setIsLoading(true);
+
+        try {
+            const currentStep = currentFlow.steps[activeSession.current_step_index];
+
+            // Add to step history
+            const newHistoryEntry: StepHistoryEntry = {
+                stepId: currentStep.id,
+                response,
+                timestamp: new Date().toISOString(),
+            };
+
+            const updatedHistory = [...activeSession.step_history, newHistoryEntry];
+
+            // Determine next step based on response and step type
+            let nextStepId: string | undefined;
+
+            if (currentStep.type === 'yes_no' && currentStep.branches) {
+                nextStepId = currentStep.branches[response];
+            } else if (currentStep.next) {
+                nextStepId = currentStep.next;
+            }
+
+            // Find next step index
+            const nextStepIndex = nextStepId
+                ? currentFlow.steps.findIndex(s => s.id === nextStepId)
+                : -1;
+
+            // Check if we've reached a terminal step
+            const nextStep = nextStepIndex >= 0 ? currentFlow.steps[nextStepIndex] : null;
+            const isTerminal = nextStep?.type === 'success' || nextStep?.type === 'error';
+
+            if (nextStepIndex === -1 || isTerminal) {
+                // Complete the session if no next step or terminal step
+                if (isTerminal) {
+                    // First update to the terminal step so it displays
+                    const { error: updateError } = await supabase
+                        .from('troubleshooting_sessions')
+                        .update({
+                            current_step_index: nextStepIndex,
+                            step_history: updatedHistory as unknown as undefined,
+                        })
+                        .eq('id', sessionId);
+
+                    if (!updateError) {
+                        setActiveSession({
+                            ...activeSession,
+                            current_step_index: nextStepIndex,
+                            step_history: updatedHistory,
+                        });
+                    }
+
+                    // Wait a moment then complete
+                    setTimeout(() => completeSession(sessionId), 2000);
+                } else {
+                    await completeSession(sessionId);
+                }
+                return true;
+            }
+
+            // Update session
+            const { error } = await supabase
+                .from('troubleshooting_sessions')
+                .update({
+                    current_step_index: nextStepIndex,
+                    step_history: updatedHistory as unknown as undefined,
+                })
+                .eq('id', sessionId);
+
+            if (error) {
+                console.error('Error updating session:', error);
+                return false;
+            }
+
+            // Update local state
+            setActiveSession({
+                ...activeSession,
+                current_step_index: nextStepIndex,
+                step_history: updatedHistory,
+            });
+
+            return true;
+        } catch (error) {
+            console.error('Error responding to step:', error);
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [activeSession, currentFlow]);
 
     // Complete a session
     const completeSession = useCallback(async (sessionId: string): Promise<void> => {
@@ -237,7 +333,7 @@ export function useTroubleshooting() {
         // Perfect Path badge (no backtracking)
         const stepIds = activeSession.step_history.map(h => h.stepId);
         const uniqueSteps = new Set(stepIds);
-        if (stepIds.length === uniqueSteps.size && !existingBadgeIds.has(BADGE_DEFINITIONS.PERFECT_PATH.id)) {
+        if (stepIds.length === uniqueSteps.size && stepIds.length > 0 && !existingBadgeIds.has(BADGE_DEFINITIONS.PERFECT_PATH.id)) {
             newBadges.push({
                 ...BADGE_DEFINITIONS.PERFECT_PATH,
                 unlocked_at: completedAt,
@@ -279,7 +375,7 @@ export function useTroubleshooting() {
             .from('user_progress')
             .update({
                 flows_completed: newFlowsCompleted,
-                badges: newBadges as unknown as undefined, // Type cast for Json
+                badges: newBadges as unknown as undefined,
                 last_active: completedAt,
             })
             .eq('user_id', userId);
@@ -296,77 +392,6 @@ export function useTroubleshooting() {
             description: 'Great job troubleshooting! 🎉',
         });
     }, [activeSession, userProgress, toast, loadUserProgress]);
-
-    // Respond to a step (yes/no)
-    const respondToStep = useCallback(async (
-        sessionId: string,
-        response: 'yes' | 'no'
-    ): Promise<boolean> => {
-        if (!activeSession || !currentFlow) return false;
-
-        setIsLoading(true);
-
-        try {
-            const currentStep = currentFlow.steps[activeSession.current_step_index];
-
-            // Add to step history
-            const newHistoryEntry: StepHistoryEntry = {
-                stepId: currentStep.id,
-                response,
-                timestamp: new Date().toISOString(),
-            };
-
-            const updatedHistory = [...activeSession.step_history, newHistoryEntry];
-
-            // Determine next step based on response
-            let nextStepId: string | undefined;
-
-            if (currentStep.type === 'yes_no' && currentStep.branches) {
-                nextStepId = currentStep.branches[response];
-            } else if (currentStep.next) {
-                nextStepId = currentStep.next;
-            }
-
-            // Find next step index
-            const nextStepIndex = nextStepId
-                ? currentFlow.steps.findIndex(s => s.id === nextStepId)
-                : -1;
-
-            if (nextStepIndex === -1) {
-                // No next step, complete the session
-                await completeSession(sessionId);
-                return true;
-            }
-
-            // Update session
-            const { error } = await supabase
-                .from('troubleshooting_sessions')
-                .update({
-                    current_step_index: nextStepIndex,
-                    step_history: updatedHistory as unknown as undefined, // Type cast for Json
-                })
-                .eq('id', sessionId);
-
-            if (error) {
-                console.error('Error updating session:', error);
-                return false;
-            }
-
-            // Update local state
-            setActiveSession({
-                ...activeSession,
-                current_step_index: nextStepIndex,
-                step_history: updatedHistory,
-            });
-
-            return true;
-        } catch (error) {
-            console.error('Error responding to step:', error);
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [activeSession, currentFlow, completeSession]);
 
     // Abandon a session
     const abandonSession = useCallback(async (sessionId: string): Promise<void> => {
@@ -390,7 +415,7 @@ export function useTroubleshooting() {
             .eq('status', 'active')
             .order('started_at', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
         if (session) {
             setActiveSession(session as unknown as TroubleshootingSession);
@@ -398,7 +423,7 @@ export function useTroubleshooting() {
             // Load the flow
             if (session.flow_id) {
                 const { data: flow } = await supabase
-                    .from('troubleshooting_flows')
+                    .from('troubleshooting_templates')
                     .select('*')
                     .eq('id', session.flow_id)
                     .single();
@@ -407,6 +432,9 @@ export function useTroubleshooting() {
                     setCurrentFlow(flow as unknown as TroubleshootingFlowData);
                 }
             }
+        } else {
+            setActiveSession(null);
+            setCurrentFlow(null);
         }
     }, []);
 

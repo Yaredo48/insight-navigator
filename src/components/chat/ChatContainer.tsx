@@ -1,14 +1,15 @@
 import { useRef, useEffect, useState } from 'react';
-import { EnhancedChatMessage } from './EnhancedChatMessage';
+import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ChatHeader } from './ChatHeader';
 import { DocumentList } from './DocumentList';
 import { ProgressTracker } from './ProgressTracker';
+import { TroubleshootingFlow } from './TroubleshootingFlow';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bot, Wrench } from 'lucide-react';
+import { Bot, Wrench, X } from 'lucide-react';
 import type { Message } from '@/hooks/useChat';
 import type { Document } from '@/hooks/useDocuments';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTroubleshooting } from '@/hooks/useTroubleshooting';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,7 +62,10 @@ export function ChatContainer({
     activeSession,
     currentFlow,
     userProgress,
+    isLoading: isTroubleshootingLoading,
     startFlow,
+    respondToStep,
+    abandonSession,
     loadActiveSession,
   } = useTroubleshooting();
 
@@ -83,14 +87,15 @@ export function ChatContainer({
     return () => {
       window.removeEventListener('trigger-troubleshooting', handleTrigger as EventListener);
     };
-  }, [currentConversationId, startFlow, onCreateConversation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentConversationId, onCreateConversation]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or when troubleshooting step changes
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, activeSession?.current_step_index]);
 
   const handleStartTroubleshooting = async (issue: string) => {
     let convId = currentConversationId;
@@ -103,11 +108,19 @@ export function ChatContainer({
 
     if (!convId) return;
 
-    const session = await startFlow(convId, undefined, issue);
+    // Start the troubleshooting flow
+    await startFlow(convId, undefined, issue);
+  };
 
-    if (session) {
-      // Send a special message to trigger troubleshooting flow display
-      onSendMessage(`[TROUBLESHOOTING_FLOW] ${issue}`);
+  const handleTroubleshootingResponse = async (response: 'yes' | 'no') => {
+    if (activeSession) {
+      await respondToStep(activeSession.id, response);
+    }
+  };
+
+  const handleAbandonSession = async () => {
+    if (activeSession) {
+      await abandonSession(activeSession.id);
     }
   };
 
@@ -130,12 +143,23 @@ export function ChatContainer({
       {/* Progress Tracker (shown when there's an active session) */}
       {activeSession && currentFlow && (
         <div className="border-b border-white/10 bg-white/5 backdrop-blur-sm px-6 py-3">
-          <ProgressTracker
-            userProgress={userProgress}
-            currentStepIndex={activeSession.current_step_index}
-            totalSteps={currentFlow.steps.length}
-            showBadges={false}
-          />
+          <div className="flex items-center justify-between">
+            <ProgressTracker
+              userProgress={userProgress}
+              currentStepIndex={activeSession.current_step_index}
+              totalSteps={currentFlow.steps.length}
+              showBadges={false}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleAbandonSession}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Exit Flow
+            </Button>
+          </div>
         </div>
       )}
 
@@ -182,7 +206,7 @@ export function ChatContainer({
         ref={scrollRef}
         className="flex-1 chat-scrollbar"
       >
-        {messages.length === 0 ? (
+        {messages.length === 0 && !activeSession ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -248,17 +272,35 @@ export function ChatContainer({
         ) : (
           <div className="space-y-0">
             {messages.map((message, index) => (
-              <EnhancedChatMessage
+              <ChatMessage
                 key={message.id}
                 id={message.id}
                 role={message.role}
                 content={message.content}
-                conversationId={currentConversationId}
                 isStreaming={isStreaming && index === messages.length - 1 && message.role === 'assistant'}
                 onEdit={onEditMessage}
                 onDelete={onDeleteMessage}
               />
             ))}
+            
+            {/* Troubleshooting Flow - shown inline after messages */}
+            <AnimatePresence>
+              {activeSession && currentFlow && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="px-6 py-6"
+                >
+                  <TroubleshootingFlow
+                    session={activeSession}
+                    flow={currentFlow}
+                    onResponse={handleTroubleshootingResponse}
+                    isLoading={isTroubleshootingLoading}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
       </ScrollArea>

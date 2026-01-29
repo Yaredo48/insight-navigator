@@ -216,7 +216,6 @@ export type Database = {
           },
         ]
       }
-<<<<<<< HEAD
       student_progress: {
         Row: {
           created_at: string | null
@@ -363,69 +362,39 @@ export type Database = {
           },
         ]
       }
-      troubleshooting_flows: {
-        Row: {
-          category: string | null
-          created_at: string
-          description: string | null
-          id: string
-          steps: Json
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          steps: Json
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          steps?: Json
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       troubleshooting_sessions: {
         Row: {
           completed_at: string | null
           conversation_id: string
-          current_step_index: number | null
+          current_step_index: number
           flow_id: string | null
           id: string
-          metadata: Json | null
+          metadata: Json
           started_at: string
-          status: string | null
-          step_history: Json | null
+          status: string
+          step_history: Json
         }
         Insert: {
           completed_at?: string | null
           conversation_id: string
-          current_step_index?: number | null
+          current_step_index?: number
           flow_id?: string | null
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           started_at?: string
-          status?: string | null
-          step_history?: Json | null
+          status?: string
+          step_history?: Json
         }
         Update: {
           completed_at?: string | null
           conversation_id?: string
-          current_step_index?: number | null
+          current_step_index?: number
           flow_id?: string | null
           id?: string
-          metadata?: Json | null
+          metadata?: Json
           started_at?: string
-          status?: string | null
-          step_history?: Json | null
+          status?: string
+          step_history?: Json
         }
         Relationships: [
           {
@@ -439,10 +408,40 @@ export type Database = {
             foreignKeyName: "troubleshooting_sessions_flow_id_fkey"
             columns: ["flow_id"]
             isOneToOne: false
-            referencedRelation: "troubleshooting_flows"
+            referencedRelation: "troubleshooting_templates"
             referencedColumns: ["id"]
           },
         ]
+      }
+      troubleshooting_templates: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          steps: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          steps: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          steps?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_badges: {
         Row: {
@@ -506,36 +505,34 @@ export type Database = {
       }
       user_progress: {
         Row: {
-          badges: Json | null
+          badges: Json
           created_at: string
-          flows_completed: number | null
+          flows_completed: number
           id: string
           last_active: string
-          tips_unlocked: Json | null
+          tips_unlocked: Json
           user_id: string
         }
         Insert: {
-          badges?: Json | null
+          badges?: Json
           created_at?: string
-          flows_completed?: number | null
+          flows_completed?: number
           id?: string
           last_active?: string
-          tips_unlocked?: Json | null
+          tips_unlocked?: Json
           user_id: string
         }
         Update: {
-          badges?: Json | null
+          badges?: Json
           created_at?: string
-          flows_completed?: number | null
+          flows_completed?: number
           id?: string
           last_active?: string
-          tips_unlocked?: Json | null
+          tips_unlocked?: Json
           user_id?: string
         }
         Relationships: []
       }
-=======
->>>>>>> 315929e (Changes)
     }
     Views: {
       [_ in never]: never
@@ -554,7 +551,7 @@ export type Database = {
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof DatabaseWithoutInternals, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
@@ -636,20 +633,20 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
+  PublicEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends PublicEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    ? keyof DatabaseWithoutInternals[PublicEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
+> = PublicEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][PublicEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
