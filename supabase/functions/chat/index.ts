@@ -6,6 +6,70 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Keywords that indicate the user is asking about books or textbook content
+const BOOK_KEYWORDS = [
+  "book", "textbook", "chapter", "page", "read", "chapter",
+  "textbook", "syllabus", "curriculum", "lesson", "exercise",
+  "paragraph", "section", "explain this chapter", "what does the book say",
+  "in the textbook", "from the book", "according to the book"
+];
+
+// Check if a message is asking about book content
+function isAskingAboutBooks(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  return BOOK_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+}
+
+// Get book context for the chat
+async function getBookContext(
+  supabase: ReturnType<typeof createClient>,
+  gradeId: number | undefined,
+  subjectId: number | undefined,
+  searchQuery?: string
+): Promise<string> {
+  try {
+    let query = supabase
+      .from("books")
+      .select("title, author, chapter, extracted_text")
+      .eq("is_processed", true)
+      .limit(5);
+
+    if (gradeId) {
+      query = query.eq("grade_id", gradeId);
+    }
+
+    if (subjectId) {
+      query = query.eq("subject_id", subjectId);
+    }
+
+    if (searchQuery) {
+      query = query.or(`title.ilike.%${searchQuery}%,extracted_text.ilike.%${searchQuery}%`);
+    }
+
+    query = query.order("chapter", { ascending: true });
+
+    const { data: books, error } = await query;
+
+    if (error || !books || books.length === 0) {
+      console.log("No books found for context");
+      return "";
+    }
+
+    const bookContext = books
+      .filter(book => book.extracted_text && book.extracted_text.length > 0)
+      .map(book => {
+        const truncatedText = book.extracted_text?.substring(0, 3000) || "";
+        return `## ${book.title}${book.chapter ? ` - Chapter ${book.chapter}` : ""}${book.author ? ` by ${book.author}` : ""}\n\n${truncatedText}`;
+      })
+      .join("\n\n---\n\n");
+
+    return bookContext;
+  } catch (error) {
+    console.error("Error fetching book context:", error);
+    return "";
+  }
+}
+
 // Get system prompt based on role and context
 function getSystemPrompt(role?: string, grade?: number, subject?: string): string {
   if (role === 'student') {
@@ -96,16 +160,14 @@ serve(async (req) => {
   try {
     const { messages, conversationId, documentContext, role, grade, subject } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
-      console.error("Please set LOVABLE_API_KEY in supabase/.env file");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is not configured");
 
-      // Return a helpful error message
       return new Response(
         JSON.stringify({
-          error: "AI service not configured. Please contact administrator.",
-          details: "LOVABLE_API_KEY environment variable is missing"
+          error: "AI service not configured. Please provide a Gemini API key.",
+          details: "GEMINI_API_KEY environment variable is missing"
         }),
         {
           status: 500,
@@ -113,11 +175,6 @@ serve(async (req) => {
         }
       );
     }
-
-    console.log(`Processing chat request for conversation: ${conversationId}`);
-    console.log(`Role: ${role}, Grade: ${grade}, Subject: ${subject}`);
-    console.log(`Number of messages: ${messages.length}`);
-    console.log(`Document context provided: ${!!documentContext}`);
 
     // Build system prompt based on role and context
     let systemContent = getSystemPrompt(role, grade, subject);
@@ -132,91 +189,144 @@ serve(async (req) => {
       systemContent += `\n\n## Current Context:\n- Grade: ${grade}\n- Subject: ${subject}\n\nPlease tailor your responses to this specific grade level and subject.`;
     }
 
-    console.log("Calling AI Gateway...");
+    // Auto-fetch book context if grade and subject are present AND documentContext is not already providing it
+    const lastUserMessage = messages[messages.length - 1]?.content || "";
+    const isExplicitlyAsking = isAskingAboutBooks(lastUserMessage);
+    const hasBookContextInDocument = documentContext && documentContext.includes("## Selected Textbooks:");
 
-    // Call Lovable AI Gateway with streaming
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    console.log("Chat context:", { role, grade, subject, isExplicitlyAsking, hasBookContextInDocument });
+
+    if (grade && (subject || isExplicitlyAsking) && !hasBookContextInDocument) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      let subjectId: number | undefined;
+
+      if (subject) {
+        console.log(`Searching for subject ID for: ${subject}`);
+        const { data: subjectData, error: subjectError } = await supabase
+          .from("subjects")
+          .select("id")
+          .ilike("name", subject)
+          .maybeSingle();
+
+        if (subjectError) {
+          console.error("Error fetching subject ID:", subjectError);
+        } else {
+          subjectId = subjectData?.id;
+          console.log(`Found subject ID: ${subjectId}`);
+        }
+      }
+
+      let gradeId: number | undefined;
+      if (typeof grade === "number") {
+        gradeId = grade;
+      } else if (grade) {
+        const match = grade.toString().match(/(\d+)/);
+        if (match) {
+          gradeId = parseInt(match[1]);
+        }
+      }
+
+      console.log(`Fetching book context for Grade: ${gradeId}, Subject: ${subjectId}`);
+      try {
+        const bookContext = await getBookContext(supabase, gradeId, subjectId, lastUserMessage);
+        if (bookContext) {
+          console.log(`Found ${bookContext.length} characters of book context`);
+          systemContent += `\n\n## Textbook Content:\n${bookContext}\n\nWhen answering questions about the textbook, use the content above as your primary source. Cite specific chapters and sections when appropriate.`;
+        } else {
+          console.log("No book context found");
+        }
+      } catch (err) {
+        console.error("Error in getBookContext helper:", err);
+      }
+    }
+
+    // Map messages to Gemini format
+    const geminiMessages = messages.map((m: any) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+    // Call Gemini API with streaming - Fixed model name from gemini-2.5-flash to gemini-1.5-flash
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemContent },
-          ...messages,
-        ],
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 4096,
+        contents: geminiMessages,
+        systemInstruction: {
+          parts: [{ text: systemContent }]
+        },
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`AI Gateway error: ${response.status} - ${errorText}`);
-
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
-      }
-
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Usage limit reached. Please add credits to continue." }),
-          {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
-      }
-
-      if (response.status === 401) {
-        return new Response(
-          JSON.stringify({ error: "Invalid API key. Please check your configuration." }),
-          {
-            status: 401,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
-      }
-
-      // Handle 503 and other server errors
-      if (response.status >= 500) {
-        return new Response(
-          JSON.stringify({ 
-            error: "AI service temporarily unavailable. Please try again in a few moments.",
-            details: "The AI service is experiencing issues. This is usually temporary."
-          }),
-          {
-            status: 503,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
-      }
-
+      console.error(`Gemini API error: ${response.status} - ${errorText}`);
       return new Response(
-        JSON.stringify({
-          error: "Failed to get AI response. Please try again.",
-          details: errorText
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        }
+        JSON.stringify({ error: "Failed to get AI response.", details: errorText }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Streaming response from AI Gateway");
+    // Transform Gemini stream to OpenAI-compatible SSE format
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
 
-    // Stream the response back to the client
-    return new Response(response.body, {
+    const transformStream = new TransformStream({
+      async transform(chunk, controller) {
+        const text = decoder.decode(chunk);
+
+        // Gemini stream is a JSON array of objects, one per chunk
+        // The format is like: [ { "candidates": [ { "content": { "parts": [ { "text": "..." } ] } } ] } ]
+        // Sometimes it sends multiple objects in one chunk or partial objects.
+
+        // Simpler approach: Gemini often sends one complete JSON object per chunk in SSE
+        // But the browser fetch body is a raw binary stream.
+
+        // For simplicity and to avoid complex parsing of partial JSON chunks, 
+        // we'll try to find the text parts.
+
+        try {
+          // Gemini SSE usually starts with [ or , or ] if it's the whole array
+          // But it's actually not SSE by default from fetch, it's just raw chunks.
+          // We'll use a regex to extract text parts from the chunk.
+          const textMatches = text.matchAll(/"text":\s*"((?:[^"\\]|\\.)*)"/g);
+          for (const match of textMatches) {
+            let content = match[1];
+            // Unescape the string
+            content = content.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+
+            const payload = {
+              choices: [
+                {
+                  delta: { content },
+                  index: 0,
+                  finish_reason: null
+                }
+              ]
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+          }
+        } catch (e) {
+          console.error("Error transforming chunk:", e);
+        }
+      },
+      flush(controller) {
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      }
+    });
+
+    const outputStream = response.body?.pipeThrough(transformStream);
+
+    return new Response(outputStream, {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/event-stream",

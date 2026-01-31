@@ -72,3 +72,32 @@ export interface DocumentMetadata {
     chapter?: string;
     topics?: string[];
 }
+
+export interface Book {
+    id: string;
+    title: string;
+    author?: string;
+    publisher?: string;
+    isbn?: string;
+    description?: string;
+    grade_id?: number;
+    subject_id?: number;
+    chapter?: number;
+    version?: string;
+    language?: string;
+    file_name: string;
+    file_size: number;
+    file_type: string;
+    storage_path: string;
+    download_url?: string;
+    source_url?: string;
+    official_source?: string;
+    extracted_text?: string;
+    metadata?: Record<string, unknown>;
+    is_processed?: boolean;
+    page_count?: number;
+    published_year?: number;
+    created_by?: string;
+    created_at?: string;
+    updated_at?: string;
+}

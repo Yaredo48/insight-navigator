@@ -1,0 +1,19 @@
+{
+  "name": "ingest-book",
+  "version": "1.0.0",
+  "description": "Ingest PDF books - download, upload to storage, extract text, register in DB",
+  "main": "index.ts",
+  "imports": {
+    "https://deno.land/std@0.168.0/http/server.ts": "https://deno.land/std@0.168.0/http/server.ts",
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2",
+    "https://esm.sh/pdf-lib@1.17.1": "https://esm.sh/pdf-lib@1.17.1"
+  },
+  "tasks": {
+    "start": "deno run -A --watch=static/,routes/ index.ts"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true
+  }
+}

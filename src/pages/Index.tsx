@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, GraduationCap, BookOpen, User } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useBookSelection } from "@/hooks/useBookSelection";
 
 interface ChatContext {
   role: string;
@@ -57,6 +58,15 @@ const Index = () => {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Book selection for RAG
+  const {
+    selectedBookIds,
+    selectionCount,
+    toggleBookSelection,
+    clearSelection,
+    getBookContext,
+  } = useBookSelection();
+
   // Extract context from navigation state
   useEffect(() => {
     if (location.state) {
@@ -76,21 +86,46 @@ const Index = () => {
   }, [location.state]);
 
   const handleSendMessage = useCallback((message: string) => {
-    // If we have documents, include context
-    const getDocumentContext = () => {
-      if (documents.length === 0) return null;
-      return documents.map(doc => `Title: ${doc.file_name}\nContent: ${doc.extracted_text}`).join('\n\n');
-    };
+    try {
+      // If we have documents, include context
+      const getDocumentContext = () => {
+        if (documents.length === 0) return null;
+        return documents.map(doc => `Title: ${doc.file_name}\nContent: ${doc.extracted_text}`).join('\n\n');
+      };
 
-    const documentContext = getDocumentContext();
+      const documentContext = getDocumentContext();
+      const bookContextText = getBookContext();
 
-    // Pass context to sendMessage
-    sendMessage(message, documentContext || undefined, chatContext ? {
-      role: chatContext.role,
-      grade: chatContext.gradeName, // Use readable names for the prompt
-      subject: chatContext.subjectName
-    } : undefined);
-  }, [sendMessage, documents, chatContext]);
+      // Combine document and book context with size limits
+      let combinedContext = documentContext || undefined;
+
+      // Only add book context if it exists and isn't too large
+      if (bookContextText) {
+        // Limit book context to prevent token overflow (max ~15000 chars)
+        const truncatedBookContext = bookContextText.length > 15000
+          ? bookContextText.substring(0, 15000) + '\n\n[Content truncated due to length...]'
+          : bookContextText;
+
+        combinedContext = combinedContext
+          ? `${combinedContext}\n\n## Selected Textbooks:\n${truncatedBookContext}`
+          : `## Selected Textbooks:\n${truncatedBookContext}`;
+      }
+
+      // Pass context to sendMessage
+      sendMessage(message, combinedContext, chatContext ? {
+        role: chatContext.role,
+        grade: chatContext.gradeName, // Use readable names for the prompt
+        subject: chatContext.subjectName
+      } : undefined);
+    } catch (error) {
+      console.error('Error in handleSendMessage:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send message. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [sendMessage, documents, chatContext, getBookContext, toast]);
 
   const handleUploadDocument = useCallback(async (file: File) => {
     let convId = currentConversationId;
@@ -208,6 +243,13 @@ const Index = () => {
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
           isStreaming={isStreaming}
+          gradeId={chatContext?.gradeId}
+          subjectId={chatContext?.subjectId}
+          onBookSelect={toggleBookSelection}
+          selectedBookIds={selectedBookIds}
+          selectionCount={selectionCount}
+          onClearSelection={clearSelection}
+          bookContext={getBookContext()}
         />
       </div>
     </div>

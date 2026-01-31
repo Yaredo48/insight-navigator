@@ -2,6 +2,17 @@
 
 An AI-powered educational assistant for Ethiopian secondary schools (Grades 9-12), built with React, TypeScript, Supabase, and Lovable.
 
+## Architecture
+
+The project follows a hybrid architecture:
+
+- **Frontend**: Single Page Application (SPA) built with Vite + React + TypeScript.
+- **Backend Service**: Django (Python) backend for complex logic, file processing, and additional API endpoints.
+- **Database**: Supabase (PostgreSQL) is the primary data store.
+- **Authentication**: Managed via Supabase Auth.
+- **Storage**: Educational content (PDFs) stored in Supabase Storage.
+- **AI Integration**: Edge Functions connect to Google's Gemini models via Lovable.
+
 ## Project Structure
 
 ```
