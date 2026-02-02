@@ -14,6 +14,14 @@ const BOOK_KEYWORDS = [
   "in the textbook", "from the book", "according to the book"
 ];
 
+// Book type for context fetching
+interface BookRecord {
+  title: string;
+  author: string | null;
+  chapter: number | null;
+  extracted_text: string | null;
+}
+
 // Check if a message is asking about book content
 function isAskingAboutBooks(message: string): boolean {
   const lowerMessage = message.toLowerCase();
@@ -22,13 +30,18 @@ function isAskingAboutBooks(message: string): boolean {
 
 // Get book context for the chat
 async function getBookContext(
-  supabase: ReturnType<typeof createClient>,
+  supabaseUrl: string,
+  supabaseKey: string,
   gradeId: number | undefined,
   subjectId: number | undefined,
   searchQuery?: string
 ): Promise<string> {
   try {
-    let query = supabase
+    // Note: This function assumes a 'books' table exists with the required columns.
+    // If the table doesn't exist, this will return empty context gracefully.
+    const supabaseClient = createClient(supabaseUrl, supabaseKey);
+    
+    let query = supabaseClient
       .from("books")
       .select("title, author, chapter, extracted_text")
       .eq("is_processed", true)
@@ -51,11 +64,13 @@ async function getBookContext(
     const { data: books, error } = await query;
 
     if (error || !books || books.length === 0) {
-      console.log("No books found for context");
+      console.log("No books found for context:", error?.message || "empty result");
       return "";
     }
 
-    const bookContext = books
+    const typedBooks = books as BookRecord[];
+    
+    const bookContext = typedBooks
       .filter(book => book.extracted_text && book.extracted_text.length > 0)
       .map(book => {
         const truncatedText = book.extracted_text?.substring(0, 3000) || "";
@@ -199,13 +214,13 @@ serve(async (req) => {
     if (grade && (subject || isExplicitlyAsking) && !hasBookContextInDocument) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
       const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-      const supabase = createClient(supabaseUrl, supabaseKey);
+      const supabaseClient = createClient(supabaseUrl, supabaseKey);
 
       let subjectId: number | undefined;
 
       if (subject) {
         console.log(`Searching for subject ID for: ${subject}`);
-        const { data: subjectData, error: subjectError } = await supabase
+        const { data: subjectData, error: subjectError } = await supabaseClient
           .from("subjects")
           .select("id")
           .ilike("name", subject)
@@ -213,8 +228,8 @@ serve(async (req) => {
 
         if (subjectError) {
           console.error("Error fetching subject ID:", subjectError);
-        } else {
-          subjectId = subjectData?.id;
+        } else if (subjectData) {
+          subjectId = (subjectData as { id: number }).id;
           console.log(`Found subject ID: ${subjectId}`);
         }
       }
@@ -231,7 +246,7 @@ serve(async (req) => {
 
       console.log(`Fetching book context for Grade: ${gradeId}, Subject: ${subjectId}`);
       try {
-        const bookContext = await getBookContext(supabase, gradeId, subjectId, lastUserMessage);
+        const bookContext = await getBookContext(supabaseUrl, supabaseKey, gradeId, subjectId, lastUserMessage);
         if (bookContext) {
           console.log(`Found ${bookContext.length} characters of book context`);
           systemContent += `\n\n## Textbook Content:\n${bookContext}\n\nWhen answering questions about the textbook, use the content above as your primary source. Cite specific chapters and sections when appropriate.`;
