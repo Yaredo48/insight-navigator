@@ -26,19 +26,35 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Plus, Trash2, Download, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import type { Grade, Subject } from '@/types/education';
+import { FileText, Plus, Trash2, Download, Loader2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface BookManagerProps {
   gradeId?: number;
   subjectId?: number;
 }
 
+// Static grade/subject options for now (until database tables are created)
+const GRADES = [
+  { id: 9, name: 'Grade 9' },
+  { id: 10, name: 'Grade 10' },
+  { id: 11, name: 'Grade 11' },
+  { id: 12, name: 'Grade 12' },
+];
+
+const SUBJECTS = [
+  { id: 1, name: 'Mathematics' },
+  { id: 2, name: 'Physics' },
+  { id: 3, name: 'Chemistry' },
+  { id: 4, name: 'Biology' },
+  { id: 5, name: 'English' },
+  { id: 6, name: 'Amharic' },
+  { id: 7, name: 'History' },
+  { id: 8, name: 'Geography' },
+];
+
 export function BookManager({ gradeId, subjectId }: BookManagerProps) {
-  const { books, isLoading, fetchBooks, ingestBookFromUrl, deleteBook } = useBooks();
-  const [grades, setGrades] = useState<Grade[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const { books, isLoading, fetchBooks, downloadAndRegisterBook, deleteBook } = useBooks();
   const [isIngesting, setIsIngesting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -54,20 +70,12 @@ export function BookManager({ gradeId, subjectId }: BookManagerProps) {
     chapter: '',
   });
 
-  // Load grades and subjects
-  useEffect(() => {
-    const loadData = async () => {
-      const { data: gradesData } = await supabase.from('grades').select('*').order('grade_number');
-      const { data: subjectsData } = await supabase.from('subjects').select('*').order('name');
-      setGrades(gradesData || []);
-      setSubjects(subjectsData || []);
-    };
-    loadData();
-  }, []);
-
   // Load books when filters change
   useEffect(() => {
-    fetchBooks({ gradeId: gradeId || (formData.selectedGradeId ? parseInt(formData.selectedGradeId) : undefined), subjectId: subjectId || (formData.selectedSubjectId ? parseInt(formData.selectedSubjectId) : undefined) });
+    fetchBooks({ 
+      gradeId: gradeId || (formData.selectedGradeId ? parseInt(formData.selectedGradeId) : undefined), 
+      subjectId: subjectId || (formData.selectedSubjectId ? parseInt(formData.selectedSubjectId) : undefined) 
+    });
   }, [gradeId, subjectId, fetchBooks]);
 
   const handleIngest = async () => {
@@ -77,15 +85,13 @@ export function BookManager({ gradeId, subjectId }: BookManagerProps) {
 
     setIsIngesting(true);
     try {
-      await ingestBookFromUrl({
+      await downloadAndRegisterBook({
+        sourceUrl: formData.fileUrl,
         title: formData.title,
         author: formData.author || undefined,
         description: formData.description || undefined,
         gradeId: formData.selectedGradeId ? parseInt(formData.selectedGradeId) : undefined,
         subjectId: formData.selectedSubjectId ? parseInt(formData.selectedSubjectId) : undefined,
-        chapter: formData.chapter ? parseInt(formData.chapter) : undefined,
-        fileUrl: formData.fileUrl,
-        officialSource: formData.officialSource || undefined,
       });
 
       // Reset form
@@ -159,7 +165,7 @@ export function BookManager({ gradeId, subjectId }: BookManagerProps) {
                       <SelectValue placeholder="Select grade" />
                     </SelectTrigger>
                     <SelectContent>
-                      {grades.map((grade) => (
+                      {GRADES.map((grade) => (
                         <SelectItem key={grade.id} value={grade.id.toString()}>
                           {grade.name}
                         </SelectItem>
@@ -177,7 +183,7 @@ export function BookManager({ gradeId, subjectId }: BookManagerProps) {
                       <SelectValue placeholder="Select subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subjects.map((subject) => (
+                      {SUBJECTS.map((subject) => (
                         <SelectItem key={subject.id} value={subject.id.toString()}>
                           {subject.name}
                         </SelectItem>
@@ -245,6 +251,13 @@ export function BookManager({ gradeId, subjectId }: BookManagerProps) {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Book management requires a Django backend. Make sure the backend is running at the configured API URL.
+        </AlertDescription>
+      </Alert>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
