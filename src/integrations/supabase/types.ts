@@ -14,6 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      books: {
+        Row: {
+          author: string | null
+          chapter: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          download_url: string | null
+          extracted_text: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          grade_id: number | null
+          id: string
+          is_processed: boolean | null
+          isbn: string | null
+          language: string | null
+          metadata: Json | null
+          official_source: string | null
+          page_count: number | null
+          published_year: number | null
+          publisher: string | null
+          source_url: string | null
+          storage_path: string
+          subject_id: number | null
+          title: string
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          author?: string | null
+          chapter?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          download_url?: string | null
+          extracted_text?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          grade_id?: number | null
+          id?: string
+          is_processed?: boolean | null
+          isbn?: string | null
+          language?: string | null
+          metadata?: Json | null
+          official_source?: string | null
+          page_count?: number | null
+          published_year?: number | null
+          publisher?: string | null
+          source_url?: string | null
+          storage_path: string
+          subject_id?: number | null
+          title: string
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          author?: string | null
+          chapter?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          download_url?: string | null
+          extracted_text?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          grade_id?: number | null
+          id?: string
+          is_processed?: boolean | null
+          isbn?: string | null
+          language?: string | null
+          metadata?: Json | null
+          official_source?: string | null
+          page_count?: number | null
+          published_year?: number | null
+          publisher?: string | null
+          source_url?: string | null
+          storage_path?: string
+          subject_id?: number | null
+          title?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "books_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "books_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string
@@ -76,6 +178,27 @@ export type Database = {
           },
         ]
       }
+      grades: {
+        Row: {
+          created_at: string
+          grade_number: number
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          grade_number: number
+          id?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          grade_number?: number
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -107,6 +230,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subjects: {
+        Row: {
+          code: string
+          created_at: string
+          id: number
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: number
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: number
+          name?: string
+        }
+        Relationships: []
       }
       troubleshooting_sessions: {
         Row: {
