@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, Users, Upload, Eye } from 'lucide-react';
+import { ArrowLeft, BookOpen, Users, Upload, Eye, FolderTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,14 +39,24 @@ const TeacherDashboard = () => {
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleViewStudentDashboard}
-              className="gap-2"
-            >
-              <Eye className="w-4 h-4" />
-              View Student Dashboard
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => navigate('/content')}
+                className="gap-2"
+              >
+                <FolderTree className="w-4 h-4" />
+                Content Manager
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleViewStudentDashboard}
+                className="gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                View Student Dashboard
+              </Button>
+            </div>
           </div>
         </div>
       </div>
