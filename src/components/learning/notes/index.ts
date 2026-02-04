@@ -1,0 +1,1 @@
+export { NoteTaker } from './NoteTaker';

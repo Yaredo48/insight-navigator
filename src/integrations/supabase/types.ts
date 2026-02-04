@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      badges: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          icon: string
+          id: string
+          name: string
+          requirement_type: string
+          requirement_value: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          icon: string
+          id?: string
+          name: string
+          requirement_type: string
+          requirement_value: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          requirement_type?: string
+          requirement_value?: number
+        }
+        Relationships: []
+      }
       books: {
         Row: {
           author: string | null
@@ -178,6 +211,148 @@ export type Database = {
           },
         ]
       }
+      flashcard_decks: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          grade_id: number | null
+          id: string
+          is_public: boolean | null
+          subject_id: number | null
+          title: string
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          grade_id?: number | null
+          id?: string
+          is_public?: boolean | null
+          subject_id?: number | null
+          title: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          grade_id?: number | null
+          id?: string
+          is_public?: boolean | null
+          subject_id?: number | null
+          title?: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcard_decks_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flashcard_decks_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flashcard_reviews: {
+        Row: {
+          created_at: string
+          ease_factor: number | null
+          flashcard_id: string
+          id: string
+          interval_days: number | null
+          last_quality: number | null
+          next_review_date: string | null
+          repetitions: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ease_factor?: number | null
+          flashcard_id: string
+          id?: string
+          interval_days?: number | null
+          last_quality?: number | null
+          next_review_date?: string | null
+          repetitions?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ease_factor?: number | null
+          flashcard_id?: string
+          id?: string
+          interval_days?: number | null
+          last_quality?: number | null
+          next_review_date?: string | null
+          repetitions?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcard_reviews_flashcard_id_fkey"
+            columns: ["flashcard_id"]
+            isOneToOne: false
+            referencedRelation: "flashcards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flashcards: {
+        Row: {
+          back_image_url: string | null
+          back_text: string
+          created_at: string
+          deck_id: string
+          front_image_url: string | null
+          front_text: string
+          id: string
+          order_index: number | null
+        }
+        Insert: {
+          back_image_url?: string | null
+          back_text: string
+          created_at?: string
+          deck_id: string
+          front_image_url?: string | null
+          front_text: string
+          id?: string
+          order_index?: number | null
+        }
+        Update: {
+          back_image_url?: string | null
+          back_text?: string
+          created_at?: string
+          deck_id?: string
+          front_image_url?: string | null
+          front_text?: string
+          id?: string
+          order_index?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcards_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "flashcard_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grades: {
         Row: {
           created_at: string
@@ -227,6 +402,299 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_attempts: {
+        Row: {
+          answers: Json | null
+          completed_at: string | null
+          id: string
+          percentage: number | null
+          quiz_id: string
+          score: number | null
+          started_at: string
+          time_taken_seconds: number | null
+          total_points: number | null
+          user_id: string
+        }
+        Insert: {
+          answers?: Json | null
+          completed_at?: string | null
+          id?: string
+          percentage?: number | null
+          quiz_id: string
+          score?: number | null
+          started_at?: string
+          time_taken_seconds?: number | null
+          total_points?: number | null
+          user_id: string
+        }
+        Update: {
+          answers?: Json | null
+          completed_at?: string | null
+          id?: string
+          percentage?: number | null
+          quiz_id?: string
+          score?: number | null
+          started_at?: string
+          time_taken_seconds?: number | null
+          total_points?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_questions: {
+        Row: {
+          correct_answer: Json
+          created_at: string
+          explanation: string | null
+          id: string
+          options: Json | null
+          order_index: number | null
+          points: number | null
+          question_text: string
+          question_type: string
+          quiz_id: string
+        }
+        Insert: {
+          correct_answer: Json
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          options?: Json | null
+          order_index?: number | null
+          points?: number | null
+          question_text: string
+          question_type: string
+          quiz_id: string
+        }
+        Update: {
+          correct_answer?: Json
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          options?: Json | null
+          order_index?: number | null
+          points?: number | null
+          question_text?: string
+          question_type?: string
+          quiz_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quizzes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          difficulty: string | null
+          grade_id: number | null
+          id: string
+          is_published: boolean | null
+          passing_score: number | null
+          subject_id: number | null
+          time_limit_minutes: number | null
+          title: string
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          difficulty?: string | null
+          grade_id?: number | null
+          id?: string
+          is_published?: boolean | null
+          passing_score?: number | null
+          subject_id?: number | null
+          time_limit_minutes?: number | null
+          title: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          difficulty?: string | null
+          grade_id?: number | null
+          id?: string
+          is_published?: boolean | null
+          passing_score?: number | null
+          subject_id?: number | null
+          time_limit_minutes?: number | null
+          title?: string
+          topic?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quizzes_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quizzes_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_notes: {
+        Row: {
+          book_id: string | null
+          content: string | null
+          created_at: string
+          grade_id: number | null
+          id: string
+          is_pinned: boolean | null
+          subject_id: number | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_id?: string | null
+          content?: string | null
+          created_at?: string
+          grade_id?: number | null
+          id?: string
+          is_pinned?: boolean | null
+          subject_id?: number | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_id?: string | null
+          content?: string | null
+          created_at?: string
+          grade_id?: number | null
+          id?: string
+          is_pinned?: boolean | null
+          subject_id?: number | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_notes_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_notes_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_notes_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_progress: {
+        Row: {
+          average_score: number | null
+          created_at: string
+          current_streak: number | null
+          flashcards_reviewed: number | null
+          grade_id: number | null
+          id: string
+          last_study_date: string | null
+          longest_streak: number | null
+          notes_created: number | null
+          quizzes_completed: number | null
+          quizzes_passed: number | null
+          subject_id: number | null
+          total_study_minutes: number | null
+          updated_at: string
+          user_id: string
+          videos_watched: number | null
+        }
+        Insert: {
+          average_score?: number | null
+          created_at?: string
+          current_streak?: number | null
+          flashcards_reviewed?: number | null
+          grade_id?: number | null
+          id?: string
+          last_study_date?: string | null
+          longest_streak?: number | null
+          notes_created?: number | null
+          quizzes_completed?: number | null
+          quizzes_passed?: number | null
+          subject_id?: number | null
+          total_study_minutes?: number | null
+          updated_at?: string
+          user_id: string
+          videos_watched?: number | null
+        }
+        Update: {
+          average_score?: number | null
+          created_at?: string
+          current_streak?: number | null
+          flashcards_reviewed?: number | null
+          grade_id?: number | null
+          id?: string
+          last_study_date?: string | null
+          longest_streak?: number | null
+          notes_created?: number | null
+          quizzes_completed?: number | null
+          quizzes_passed?: number | null
+          subject_id?: number | null
+          total_study_minutes?: number | null
+          updated_at?: string
+          user_id?: string
+          videos_watched?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_progress_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_progress_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -326,6 +794,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          badge_id: string
+          earned_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          earned_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          earned_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_progress: {
         Row: {
           badges: Json
@@ -356,9 +853,125 @@ export type Database = {
         }
         Relationships: []
       }
+      video_lessons: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          duration_seconds: number | null
+          grade_id: number | null
+          id: string
+          is_published: boolean | null
+          order_index: number | null
+          subject_id: number | null
+          thumbnail_url: string | null
+          title: string
+          topic: string | null
+          updated_at: string
+          video_type: string | null
+          video_url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          grade_id?: number | null
+          id?: string
+          is_published?: boolean | null
+          order_index?: number | null
+          subject_id?: number | null
+          thumbnail_url?: string | null
+          title: string
+          topic?: string | null
+          updated_at?: string
+          video_type?: string | null
+          video_url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          grade_id?: number | null
+          id?: string
+          is_published?: boolean | null
+          order_index?: number | null
+          subject_id?: number | null
+          thumbnail_url?: string | null
+          title?: string
+          topic?: string | null
+          updated_at?: string
+          video_type?: string | null
+          video_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_lessons_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_lessons_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_progress: {
+        Row: {
+          completed: boolean | null
+          id: string
+          last_watched_at: string | null
+          user_id: string
+          video_id: string
+          watched_seconds: number | null
+        }
+        Insert: {
+          completed?: boolean | null
+          id?: string
+          last_watched_at?: string | null
+          user_id: string
+          video_id: string
+          watched_seconds?: number | null
+        }
+        Update: {
+          completed?: boolean | null
+          id?: string
+          last_watched_at?: string | null
+          user_id?: string
+          video_id?: string
+          watched_seconds?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_progress_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "video_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      leaderboard: {
+        Row: {
+          avg_score: number | null
+          best_streak: number | null
+          total_flashcards: number | null
+          total_minutes: number | null
+          total_passed: number | null
+          total_quizzes: number | null
+          total_videos: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

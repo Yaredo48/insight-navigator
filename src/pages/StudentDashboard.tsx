@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MessageSquare, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GradeSelector } from '@/components/student/GradeSelector';
 import { SubjectSelector } from '@/components/student/SubjectSelector';
@@ -165,14 +165,23 @@ const StudentDashboard = () => {
             </motion.div>
           )}
 
-          {/* Start Learning Button */}
-          {selectedGrade && selectedSubject && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="flex justify-center"
+          {/* Action Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="flex flex-col sm:flex-row justify-center gap-4"
+          >
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => navigate('/learn')}
+              className="px-8 py-6 text-lg"
             >
+              <BookOpen className="w-6 h-6 mr-2" />
+              Learning Center
+            </Button>
+            {selectedGrade && selectedSubject && (
               <Button
                 size="lg"
                 onClick={handleStartLearning}
@@ -181,8 +190,8 @@ const StudentDashboard = () => {
                 <MessageSquare className="w-6 h-6 mr-2" />
                 Start Learning Session
               </Button>
-            </motion.div>
-          )}
+            )}
+          </motion.div>
         </div>
       </div>
     </div>
