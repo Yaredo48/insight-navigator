@@ -1,13 +1,18 @@
-import { useState, useEffect } from 'react';
+ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, Users, Upload, Eye, FolderTree } from 'lucide-react';
+ import { ArrowLeft, BookOpen, Users, Upload, Eye, FolderTree, ClipboardList, Megaphone, Calendar, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResourceLibrary } from '@/components/teacher/ResourceLibrary';
 import { ClassProgress } from '@/components/teacher/ClassProgress';
 import { DocumentUploader } from '@/components/teacher/DocumentUploader';
+ import { ClassManager } from '@/components/teacher/classes';
+ import { AssignmentManager } from '@/components/teacher/assignments';
+ import { AnnouncementManager } from '@/components/teacher/announcements';
+ import { LessonPlanManager } from '@/components/teacher/lessons';
+ import { AnalyticsDashboard } from '@/components/teacher/analytics';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
@@ -85,73 +90,65 @@ const TeacherDashboard = () => {
           </Card>
         </motion.div>
 
-        {/* Quick Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
-        >
-          <Card className="p-6 bg-blue-500/5 border-blue-500/20">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-500/10 rounded-lg">
-                <BookOpen className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">8</p>
-                <p className="text-sm text-muted-foreground">Subjects</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-green-500/5 border-green-500/20">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-500/10 rounded-lg">
-                <Users className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">4</p>
-                <p className="text-sm text-muted-foreground">Grade Levels</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 bg-purple-500/5 border-purple-500/20">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-500/10 rounded-lg">
-                <Upload className="w-6 h-6 text-purple-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">Ready</p>
-                <p className="text-sm text-muted-foreground">Upload Materials</p>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
+ 
 
         {/* Main Tabs */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
         >
-          <Tabs defaultValue="resources" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 lg:w-auto">
+           <Tabs defaultValue="classes" className="space-y-6">
+             <TabsList className="flex flex-wrap gap-1 h-auto p-1">
+               <TabsTrigger value="classes" className="gap-2">
+                 <Users className="w-4 h-4" />
+                 Classes
+               </TabsTrigger>
+               <TabsTrigger value="assignments" className="gap-2">
+                 <ClipboardList className="w-4 h-4" />
+                 Assignments
+               </TabsTrigger>
+               <TabsTrigger value="announcements" className="gap-2">
+                 <Megaphone className="w-4 h-4" />
+                 Announcements
+               </TabsTrigger>
+               <TabsTrigger value="lessons" className="gap-2">
+                 <Calendar className="w-4 h-4" />
+                 Lesson Plans
+               </TabsTrigger>
+               <TabsTrigger value="analytics" className="gap-2">
+                 <BarChart3 className="w-4 h-4" />
+                 Analytics
+               </TabsTrigger>
               <TabsTrigger value="resources">Resource Library</TabsTrigger>
               <TabsTrigger value="upload">Upload Materials</TabsTrigger>
-              <TabsTrigger value="progress">Class Progress</TabsTrigger>
             </TabsList>
 
+             <TabsContent value="classes" className="space-y-4">
+               <ClassManager userId={userId} />
+             </TabsContent>
+ 
+             <TabsContent value="assignments" className="space-y-4">
+               <AssignmentManager userId={userId} />
+             </TabsContent>
+ 
+             <TabsContent value="announcements" className="space-y-4">
+               <AnnouncementManager userId={userId} />
+             </TabsContent>
+ 
+             <TabsContent value="lessons" className="space-y-4">
+               <LessonPlanManager userId={userId} />
+             </TabsContent>
+ 
+             <TabsContent value="analytics" className="space-y-4">
+               <AnalyticsDashboard userId={userId} />
+             </TabsContent>
+ 
             <TabsContent value="resources" className="space-y-4">
               <ResourceLibrary userId={userId} />
             </TabsContent>
 
             <TabsContent value="upload" className="space-y-4">
               <DocumentUploader userId={userId} />
-            </TabsContent>
-
-            <TabsContent value="progress" className="space-y-4">
-              <ClassProgress />
             </TabsContent>
           </Tabs>
         </motion.div>
