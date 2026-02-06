@@ -86,25 +86,47 @@
      return (data as Submission[]) || [];
    };
  
-   const gradeSubmission = async (submissionId: string, grade: number, feedback: string) => {
-     try {
-       const { error } = await supabase
-         .from('assignment_submissions')
-         .update({
-           grade,
-           feedback,
-           status: 'graded',
-           graded_at: new Date().toISOString(),
-           graded_by: teacherId
-         })
-         .eq('id', submissionId);
- 
-       if (error) throw error;
-       toast({ title: 'Submission graded!' });
-     } catch (error: any) {
-       toast({ title: 'Error grading submission', description: error.message, variant: 'destructive' });
-     }
-   };
+  const gradeSubmission = async (submissionId: string, grade: number, feedback: string) => {
+    try {
+      // Get submission details for notification
+      const { data: submission } = await supabase
+        .from('assignment_submissions')
+        .select('student_id, assignment_id')
+        .eq('id', submissionId)
+        .single();
+
+      const { error } = await supabase
+        .from('assignment_submissions')
+        .update({
+          grade,
+          feedback,
+          status: 'graded',
+          graded_at: new Date().toISOString(),
+          graded_by: teacherId
+        })
+        .eq('id', submissionId);
+
+      if (error) throw error;
+      toast({ title: 'Submission graded!' });
+
+      // Send grade notification (fire and forget)
+      if (submission) {
+        const assignment = assignments.find((a) => a.id === submission.assignment_id);
+        supabase.functions.invoke('send-notification', {
+          body: {
+            type: 'grade',
+            student_id: submission.student_id,
+            assignment_title: assignment?.title || 'Assignment',
+            grade,
+            max_points: assignment?.max_points || 100,
+            feedback,
+          },
+        }).catch((err) => console.error('Notification error:', err));
+      }
+    } catch (error: any) {
+      toast({ title: 'Error grading submission', description: error.message, variant: 'destructive' });
+    }
+  };
  
    useEffect(() => {
      fetchAssignments();

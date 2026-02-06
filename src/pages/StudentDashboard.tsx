@@ -1,12 +1,15 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MessageSquare, BookOpen } from 'lucide-react';
+import { ArrowLeft, MessageSquare, BookOpen, ClipboardList, Megaphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GradeSelector } from '@/components/student/GradeSelector';
 import { SubjectSelector } from '@/components/student/SubjectSelector';
 import { StudentProfile } from '@/components/student/StudentProfile';
 import { BadgeDisplay } from '@/components/chat/BadgeDisplay';
+import { StudentAssignmentManager } from '@/components/student/assignments';
+import { StudentAnnouncementList } from '@/components/student/StudentAnnouncementList';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Grade, Subject, StudentProgress, UserBadge } from '@/types/education';
@@ -38,6 +41,8 @@ const StudentDashboard = () => {
   const [selectedSubject, setSelectedSubject] = useState<number | null>(null);
   const [userBadges] = useState<UserBadge[]>([]);
   const [progress] = useState<StudentProgress | null>(null);
+  // In production, this would come from auth
+  const [studentId] = useState<string>('student-1');
 
   const handleStartLearning = useCallback(async () => {
     if (!selectedGrade || !selectedSubject) return;
@@ -102,97 +107,124 @@ const StudentDashboard = () => {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="space-y-8">
-          {/* Profile Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <StudentProfile
-              userName="Student"
-              progress={progress || undefined}
-              badgeCount={userBadges.length}
-            />
-          </motion.div>
+        <Tabs defaultValue="home" className="space-y-6">
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1">
+            <TabsTrigger value="home">
+              <BookOpen className="w-4 h-4 mr-2" />
+              Home
+            </TabsTrigger>
+            <TabsTrigger value="assignments">
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Assignments
+            </TabsTrigger>
+            <TabsTrigger value="announcements">
+              <Megaphone className="w-4 h-4 mr-2" />
+              Announcements
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Badges Section */}
-          {userBadges.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <BadgeDisplay badges={userBadges
-                .filter(ub => ub.badge)
-                .map((ub) => ({
-                  ...ub.badge!,
-                  id: ub.badge!.id.toString(),
-                  icon: ub.badge!.icon || '🏆',
-                  description: ub.badge!.description || '',
-                  criteria: ub.badge!.criteria,
-                  name: ub.badge!.name,
-                  unlocked_at: ub.earned_at
-                }))}
-              />
-            </motion.div>
-          )}
-
-          {/* Grade Selection */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <GradeSelector
-              grades={GRADES}
-              selectedGrade={selectedGrade}
-              onSelectGrade={setSelectedGrade}
-            />
-          </motion.div>
-
-          {/* Subject Selection */}
-          {selectedGrade && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <SubjectSelector
-                subjects={SUBJECTS}
-                selectedSubject={selectedSubject}
-                onSelectSubject={setSelectedSubject}
-              />
-            </motion.div>
-          )}
-
-          {/* Action Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex flex-col sm:flex-row justify-center gap-4"
-          >
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={() => navigate('/learn')}
-              className="px-8 py-6 text-lg"
-            >
-              <BookOpen className="w-6 h-6 mr-2" />
-              Learning Center
-            </Button>
-            {selectedGrade && selectedSubject && (
-              <Button
-                size="lg"
-                onClick={handleStartLearning}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-8 py-6 text-lg"
+          <TabsContent value="home">
+            <div className="space-y-8">
+              {/* Profile Section */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
               >
-                <MessageSquare className="w-6 h-6 mr-2" />
-                Start Learning Session
-              </Button>
-            )}
-          </motion.div>
-        </div>
+                <StudentProfile
+                  userName="Student"
+                  progress={progress || undefined}
+                  badgeCount={userBadges.length}
+                />
+              </motion.div>
+
+              {/* Badges Section */}
+              {userBadges.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <BadgeDisplay badges={userBadges
+                    .filter(ub => ub.badge)
+                    .map((ub) => ({
+                      ...ub.badge!,
+                      id: ub.badge!.id.toString(),
+                      icon: ub.badge!.icon || '🏆',
+                      description: ub.badge!.description || '',
+                      criteria: ub.badge!.criteria,
+                      name: ub.badge!.name,
+                      unlocked_at: ub.earned_at
+                    }))}
+                  />
+                </motion.div>
+              )}
+
+              {/* Grade Selection */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                <GradeSelector
+                  grades={GRADES}
+                  selectedGrade={selectedGrade}
+                  onSelectGrade={setSelectedGrade}
+                />
+              </motion.div>
+
+              {/* Subject Selection */}
+              {selectedGrade && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <SubjectSelector
+                    subjects={SUBJECTS}
+                    selectedSubject={selectedSubject}
+                    onSelectSubject={setSelectedSubject}
+                  />
+                </motion.div>
+              )}
+
+              {/* Action Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="flex flex-col sm:flex-row justify-center gap-4"
+              >
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => navigate('/learn')}
+                  className="px-8 py-6 text-lg"
+                >
+                  <BookOpen className="w-6 h-6 mr-2" />
+                  Learning Center
+                </Button>
+                {selectedGrade && selectedSubject && (
+                  <Button
+                    size="lg"
+                    onClick={handleStartLearning}
+                    className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-6 text-lg"
+                  >
+                    <MessageSquare className="w-6 h-6 mr-2" />
+                    Start Learning Session
+                  </Button>
+                )}
+              </motion.div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="assignments">
+            <StudentAssignmentManager studentId={studentId} />
+          </TabsContent>
+
+          <TabsContent value="announcements">
+            <StudentAnnouncementList studentId={studentId} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
