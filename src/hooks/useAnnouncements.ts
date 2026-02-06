@@ -30,23 +30,36 @@
      }
    };
  
-   const createAnnouncement = async (data: Partial<Announcement>) => {
-     try {
-       const { data: created, error } = await supabase
-         .from('announcements')
-         .insert([{ ...data, teacher_id: teacherId, title: data.title || 'New Announcement', content: data.content || '' }])
-         .select()
-         .single();
- 
-       if (error) throw error;
-       toast({ title: 'Announcement posted!' });
-       fetchAnnouncements();
-       return created;
-     } catch (error: any) {
-       toast({ title: 'Error creating announcement', description: error.message, variant: 'destructive' });
-       return null;
-     }
-   };
+  const createAnnouncement = async (data: Partial<Announcement>) => {
+    try {
+      const { data: created, error } = await supabase
+        .from('announcements')
+        .insert([{ ...data, teacher_id: teacherId, title: data.title || 'New Announcement', content: data.content || '' }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      toast({ title: 'Announcement posted!' });
+      fetchAnnouncements();
+
+      // Send notification (fire and forget)
+      if (created) {
+        supabase.functions.invoke('send-notification', {
+          body: {
+            type: 'announcement',
+            announcement_title: created.title,
+            announcement_content: created.content,
+            class_id: created.class_id,
+          },
+        }).catch((err) => console.error('Notification error:', err));
+      }
+
+      return created;
+    } catch (error: any) {
+      toast({ title: 'Error creating announcement', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
  
    const updateAnnouncement = async (id: string, updates: Partial<Announcement>) => {
      try {
