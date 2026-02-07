@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CheckCircle, Clock, Calendar, FileText, MessageSquare } from 'lucide-react';
+import { CheckCircle, Clock, Calendar, FileText, MessageSquare, Paperclip, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import type { StudentAssignment } from '@/hooks/useStudentAssignments';
 
@@ -14,6 +14,16 @@ interface GradeViewDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   assignment: StudentAssignment | null;
+}
+
+function parseFileUrls(fileUrls: any): string[] {
+  if (!fileUrls) return [];
+  try {
+    const urls = typeof fileUrls === 'string' ? JSON.parse(fileUrls) : fileUrls;
+    return Array.isArray(urls) ? urls : [];
+  } catch {
+    return [];
+  }
 }
 
 export function GradeViewDialog({ open, onOpenChange, assignment }: GradeViewDialogProps) {
@@ -24,6 +34,7 @@ export function GradeViewDialog({ open, onOpenChange, assignment }: GradeViewDia
   const percentage = isGraded && assignment.max_points
     ? Math.round(((submission.grade || 0) / assignment.max_points) * 100)
     : null;
+  const files = parseFileUrls(submission?.file_urls);
 
   const getScoreColor = (pct: number) => {
     if (pct >= 80) return 'text-green-600 dark:text-green-400';
@@ -93,6 +104,34 @@ export function GradeViewDialog({ open, onOpenChange, assignment }: GradeViewDia
               </h4>
               <div className="bg-muted/30 p-3 rounded-lg text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">
                 {submission.content}
+              </div>
+            </div>
+          )}
+
+          {/* Attached files */}
+          {files.length > 0 && (
+            <div>
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <Paperclip className="w-4 h-4" />
+                Attached Files ({files.length})
+              </h4>
+              <div className="space-y-2">
+                {files.map((url, i) => {
+                  const fileName = url.split('/').pop() || `File ${i + 1}`;
+                  return (
+                    <a
+                      key={i}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg text-sm hover:bg-muted/50 transition-colors"
+                    >
+                      <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span className="truncate flex-1">{fileName}</span>
+                      <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
+                    </a>
+                  );
+                })}
               </div>
             </div>
           )}

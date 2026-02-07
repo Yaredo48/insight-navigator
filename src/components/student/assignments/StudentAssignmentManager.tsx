@@ -105,6 +105,7 @@ export function StudentAssignmentManager({ studentId }: StudentAssignmentManager
         open={!!submissionTarget}
         onOpenChange={(open) => !open && setSubmissionTarget(null)}
         assignment={submissionTarget}
+        studentId={studentId}
         onSubmit={submitAssignment}
         onUpdate={updateSubmission}
       />

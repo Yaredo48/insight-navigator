@@ -658,6 +658,63 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_sessions: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          ended_at: string | null
+          grade_id: number | null
+          id: string
+          metadata: Json | null
+          session_type: string
+          started_at: string
+          subject_id: number | null
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          ended_at?: string | null
+          grade_id?: number | null
+          id?: string
+          metadata?: Json | null
+          session_type?: string
+          started_at?: string
+          subject_id?: number | null
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          ended_at?: string | null
+          grade_id?: number | null
+          id?: string
+          metadata?: Json | null
+          session_type?: string
+          started_at?: string
+          subject_id?: number | null
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_sessions_grade_id_fkey"
+            columns: ["grade_id"]
+            isOneToOne: false
+            referencedRelation: "grades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_sessions_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lesson_plans: {
         Row: {
           activities: Json | null
@@ -809,6 +866,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       quiz_attempts: {
         Row: {
