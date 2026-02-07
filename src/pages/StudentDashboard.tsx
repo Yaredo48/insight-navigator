@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MessageSquare, BookOpen, ClipboardList, Megaphone } from 'lucide-react';
+import { ArrowLeft, MessageSquare, BookOpen, ClipboardList, Megaphone, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GradeSelector } from '@/components/student/GradeSelector';
@@ -10,11 +10,11 @@ import { StudentProfile } from '@/components/student/StudentProfile';
 import { BadgeDisplay } from '@/components/chat/BadgeDisplay';
 import { StudentAssignmentManager } from '@/components/student/assignments';
 import { StudentAnnouncementList } from '@/components/student/StudentAnnouncementList';
+import { PerformanceDashboard } from '@/components/student/analytics';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Grade, Subject, StudentProgress, UserBadge } from '@/types/education';
 
-// Static data for grades and subjects (until database tables are created)
 const GRADES: Grade[] = [
   { id: 9, grade_number: 9, name: 'Grade 9' },
   { id: 10, grade_number: 10, name: 'Grade 10' },
@@ -41,7 +41,6 @@ const StudentDashboard = () => {
   const [selectedSubject, setSelectedSubject] = useState<number | null>(null);
   const [userBadges] = useState<UserBadge[]>([]);
   const [progress] = useState<StudentProgress | null>(null);
-  // In production, this would come from auth
   const [studentId] = useState<string>('student-1');
 
   const handleStartLearning = useCallback(async () => {
@@ -50,7 +49,6 @@ const StudentDashboard = () => {
     const selectedGradeData = GRADES.find((g) => g.id === selectedGrade);
     const selectedSubjectData = SUBJECTS.find((s) => s.id === selectedSubject);
 
-    // Create a conversation for the learning session
     const { data: conversation, error } = await supabase
       .from('conversations')
       .insert({
@@ -68,15 +66,14 @@ const StudentDashboard = () => {
       return;
     }
 
-    // Navigate to chat with context in state
     navigate(`/chat/${conversation.id}`, {
       state: {
         role: 'student',
         gradeName: selectedGradeData?.name,
         subjectName: selectedSubjectData?.name,
         gradeId: selectedGrade,
-        subjectId: selectedSubject
-      }
+        subjectId: selectedSubject,
+      },
     });
   }, [selectedGrade, selectedSubject, navigate, toast]);
 
@@ -87,11 +84,7 @@ const StudentDashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/')}
-              >
+              <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
@@ -121,15 +114,15 @@ const StudentDashboard = () => {
               <Megaphone className="w-4 h-4 mr-2" />
               Announcements
             </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="home">
             <div className="space-y-8">
-              {/* Profile Section */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                 <StudentProfile
                   userName="Student"
                   progress={progress || undefined}
@@ -137,29 +130,28 @@ const StudentDashboard = () => {
                 />
               </motion.div>
 
-              {/* Badges Section */}
               {userBadges.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <BadgeDisplay badges={userBadges
-                    .filter(ub => ub.badge)
-                    .map((ub) => ({
-                      ...ub.badge!,
-                      id: ub.badge!.id.toString(),
-                      icon: ub.badge!.icon || '🏆',
-                      description: ub.badge!.description || '',
-                      criteria: ub.badge!.criteria,
-                      name: ub.badge!.name,
-                      unlocked_at: ub.earned_at
-                    }))}
+                  <BadgeDisplay
+                    badges={userBadges
+                      .filter((ub) => ub.badge)
+                      .map((ub) => ({
+                        ...ub.badge!,
+                        id: ub.badge!.id.toString(),
+                        icon: ub.badge!.icon || '🏆',
+                        description: ub.badge!.description || '',
+                        criteria: ub.badge!.criteria,
+                        name: ub.badge!.name,
+                        unlocked_at: ub.earned_at,
+                      }))}
                   />
                 </motion.div>
               )}
 
-              {/* Grade Selection */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -172,7 +164,6 @@ const StudentDashboard = () => {
                 />
               </motion.div>
 
-              {/* Subject Selection */}
               {selectedGrade && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -187,7 +178,6 @@ const StudentDashboard = () => {
                 </motion.div>
               )}
 
-              {/* Action Buttons */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -223,6 +213,10 @@ const StudentDashboard = () => {
 
           <TabsContent value="announcements">
             <StudentAnnouncementList studentId={studentId} />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <PerformanceDashboard studentId={studentId} />
           </TabsContent>
         </Tabs>
       </div>
