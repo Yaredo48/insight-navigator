@@ -64,10 +64,10 @@ const StudentDashboard = () => {
   } : null;
 
   // Fetch progress on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useState(() => {
+  // Fetch progress on mount
+  useEffect(() => {
     if (studentId) fetchProgress();
-  });
+  }, [studentId, fetchProgress]);
 
   const handleStartLearning = useCallback(async () => {
     if (!selectedGrade || !selectedSubject) return;
