@@ -14,7 +14,8 @@ import { PerformanceDashboard } from '@/components/student/analytics';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Grade, Subject, StudentProgress, UserBadge } from '@/types/education';
+import { useStudentProgress } from '@/hooks/useStudentProgress';
+import type { Grade, Subject, UserBadge } from '@/types/education';
 
 const GRADES: Grade[] = [
   { id: 9, grade_number: 9, name: 'Grade 9' },
@@ -37,13 +38,36 @@ const SUBJECTS: Subject[] = [
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, user } = useAuth();
 
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<number | null>(null);
   const [userBadges] = useState<UserBadge[]>([]);
-  const [progress] = useState<StudentProgress | null>(null);
-  const [studentId] = useState<string>('student-1');
+  // Use the authenticated user's ID, or fallback if not loaded (though protected route handles this)
+  const studentId = user?.id || '';
+
+  const { progressData, fetchProgress } = useStudentProgress(studentId);
+
+  // Transform progressData to match StudentProfile expectation (StudentProgress interface)
+  // We aggregate the data from the hook to create a single progress object
+  const progress: StudentProgress | null = progressData.length > 0 ? {
+    id: progressData[0].id,
+    user_id: progressData[0].user_id,
+    grade_id: progressData[0].grade_id || 0,
+    subject_id: progressData[0].subject_id || 0,
+    topics_completed: [], // data not available in hook yet
+    exercises_completed: progressData.reduce((acc, p) => acc + (p.quizzes_completed || 0), 0), // mapping quizzes to exercises for now
+    current_streak: Math.max(...progressData.map(p => p.current_streak || 0)),
+    total_interactions: progressData.reduce((acc, p) => acc + (p.quizzes_completed + p.flashcards_reviewed + p.videos_watched), 0),
+    created_at: progressData[0].created_at,
+    updated_at: progressData[0].updated_at
+  } : null;
+
+  // Fetch progress on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useState(() => {
+    if (studentId) fetchProgress();
+  });
 
   const handleStartLearning = useCallback(async () => {
     if (!selectedGrade || !selectedSubject) return;

@@ -17,9 +17,9 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
-  // Use a simple ID for the teacher - in production, this would come from auth
-  const [userId] = useState<string>('teacher-1');
+  const { signOut, profile, user } = useAuth();
+  // Use the authenticated user's ID
+  const userId = user?.id;
 
   const handleViewStudentDashboard = () => {
     navigate('/student');

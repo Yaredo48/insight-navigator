@@ -85,6 +85,15 @@ export const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
       return;
     }
 
+    if (!userId) {
+      toast({
+        title: 'Authentication error',
+        description: 'You must be logged in to upload resources',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -97,26 +106,37 @@ export const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
         const filePath = `teacher-resources/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-          .from('documents')
+          .from('educational-content')
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         // Get public URL
         const { data: urlData } = supabase.storage
-          .from('documents')
+          .from('educational-content')
           .getPublicUrl(filePath);
 
         fileUrl = urlData.publicUrl;
       }
 
-      // Note: teacher_resources table doesn't exist yet
-      // For now, just show success with the file upload
+      // Insert into teacher_resources table
+      const { error: dbError } = await supabase
+        .from('teacher_resources')
+        .insert({
+          title,
+          description,
+          resource_type: resourceType,
+          grade_id: selectedGrade ? parseInt(selectedGrade) : null,
+          subject_id: selectedSubject ? parseInt(selectedSubject) : null,
+          file_url: fileUrl,
+          created_by: userId
+        });
+
+      if (dbError) throw dbError;
+
       toast({
-        title: 'File uploaded!',
-        description: fileUrl 
-          ? 'Document uploaded to storage successfully. Teacher resources table needs to be created to save metadata.'
-          : 'Resource type recorded. Create teacher_resources table to persist this data.',
+        title: 'Resource uploaded!',
+        description: 'Your resource has been added to the library.',
       });
 
       // Reset form
@@ -146,13 +166,6 @@ export const DocumentUploader = ({ userId }: DocumentUploaderProps) => {
           Upload textbooks, teacher guides, lesson plans, and other educational resources
         </p>
       </div>
-
-      <Alert className="mb-6">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Files will be uploaded to storage. Create a teacher_resources table to save document metadata.
-        </AlertDescription>
-      </Alert>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Title */}

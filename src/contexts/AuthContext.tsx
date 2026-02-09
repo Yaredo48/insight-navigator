@@ -46,6 +46,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Fetch user profile from database
     const fetchUserProfile = async (userId: string) => {
+        console.log('Fetching profile for:', userId);
         try {
             const { data, error } = await supabase
                 .from('user_profiles')
@@ -53,11 +54,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 .eq('id', userId)
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error('Supabase query error:', error);
+                throw error;
+            }
+            console.log('Profile found:', data);
             setProfile(data);
             return data;
         } catch (error) {
             console.error('Error fetching user profile:', error);
+            // Return null but let caller handle it, or maybe throw?
+            // For now, returning null is handled in signIn/signUp
             return null;
         }
     };
@@ -65,11 +72,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Initialize auth state
     useEffect(() => {
         // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-                fetchUserProfile(session.user.id);
+                await fetchUserProfile(session.user.id);
             }
             setLoading(false);
         });
@@ -143,7 +150,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
                 // Navigate based on role
                 if (userProfile) {
+                    // alert(`Login successful! Redirecting to /${userProfile.role}`); // Debugging
                     navigate(userProfile.role === 'student' ? '/student' : '/teacher');
+                } else {
+                    // If no profile found, sign out and throw error
+                    await supabase.auth.signOut();
+                    throw new Error('User profile not found. Please contact support.');
                 }
             }
         } catch (error) {

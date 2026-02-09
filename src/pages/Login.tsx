@@ -34,8 +34,11 @@ const Login = () => {
         setIsLoading(true);
         try {
             await signIn(data.email, data.password);
-        } catch (error) {
+            // If we get here, navigation should have happened.
+        } catch (error: any) {
             console.error('Login error:', error);
+            // Temporary debug alert
+            alert(`Login Failed: ${error.message || 'Unknown error'}`);
         } finally {
             setIsLoading(false);
         }
