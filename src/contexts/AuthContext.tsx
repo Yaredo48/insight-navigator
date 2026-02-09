@@ -150,7 +150,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
                 // Navigate based on role
                 if (userProfile) {
-                    // alert(`Login successful! Redirecting to /${userProfile.role}`); // Debugging
                     navigate(userProfile.role === 'student' ? '/student' : '/teacher');
                 } else {
                     // If no profile found, sign out and throw error
