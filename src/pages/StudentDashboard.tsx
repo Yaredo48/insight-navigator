@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MessageSquare, BookOpen, ClipboardList, Megaphone, BarChart3 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, BookOpen, ClipboardList, Megaphone, BarChart3, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GradeSelector } from '@/components/student/GradeSelector';
@@ -13,6 +13,7 @@ import { StudentAnnouncementList } from '@/components/student/StudentAnnouncemen
 import { PerformanceDashboard } from '@/components/student/analytics';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Grade, Subject, StudentProgress, UserBadge } from '@/types/education';
 
 const GRADES: Grade[] = [
@@ -36,6 +37,7 @@ const SUBJECTS: Subject[] = [
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signOut, profile } = useAuth();
 
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<number | null>(null);
@@ -93,6 +95,17 @@ const StudentDashboard = () => {
                   Ethiopian Secondary Education • Grades 9-12
                 </p>
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {profile?.name && (
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  Welcome, {profile.name}
+                </span>
+              )}
+              <Button variant="outline" size="sm" onClick={signOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>

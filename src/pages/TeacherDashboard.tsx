@@ -1,21 +1,23 @@
- import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
- import { ArrowLeft, BookOpen, Users, Upload, Eye, FolderTree, ClipboardList, Megaphone, Calendar, BarChart3 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Users, Upload, Eye, FolderTree, ClipboardList, Megaphone, Calendar, BarChart3, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResourceLibrary } from '@/components/teacher/ResourceLibrary';
 import { ClassProgress } from '@/components/teacher/ClassProgress';
 import { DocumentUploader } from '@/components/teacher/DocumentUploader';
- import { ClassManager } from '@/components/teacher/classes';
- import { AssignmentManager } from '@/components/teacher/assignments';
- import { AnnouncementManager } from '@/components/teacher/announcements';
- import { LessonPlanManager } from '@/components/teacher/lessons';
- import { AnalyticsDashboard } from '@/components/teacher/analytics';
+import { ClassManager } from '@/components/teacher/classes';
+import { AssignmentManager } from '@/components/teacher/assignments';
+import { AnnouncementManager } from '@/components/teacher/announcements';
+import { LessonPlanManager } from '@/components/teacher/lessons';
+import { AnalyticsDashboard } from '@/components/teacher/analytics';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
+  const { signOut, profile } = useAuth();
   // Use a simple ID for the teacher - in production, this would come from auth
   const [userId] = useState<string>('teacher-1');
 
@@ -45,6 +47,11 @@ const TeacherDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {profile?.name && (
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  Welcome, {profile.name}
+                </span>
+              )}
               <Button
                 variant="outline"
                 onClick={() => navigate('/content')}
@@ -60,6 +67,10 @@ const TeacherDashboard = () => {
               >
                 <Eye className="w-4 h-4" />
                 View Student Dashboard
+              </Button>
+              <Button variant="outline" size="sm" onClick={signOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
               </Button>
             </div>
           </div>
@@ -90,59 +101,59 @@ const TeacherDashboard = () => {
           </Card>
         </motion.div>
 
- 
+
 
         {/* Main Tabs */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-           <Tabs defaultValue="classes" className="space-y-6">
-             <TabsList className="flex flex-wrap gap-1 h-auto p-1">
-               <TabsTrigger value="classes" className="gap-2">
-                 <Users className="w-4 h-4" />
-                 Classes
-               </TabsTrigger>
-               <TabsTrigger value="assignments" className="gap-2">
-                 <ClipboardList className="w-4 h-4" />
-                 Assignments
-               </TabsTrigger>
-               <TabsTrigger value="announcements" className="gap-2">
-                 <Megaphone className="w-4 h-4" />
-                 Announcements
-               </TabsTrigger>
-               <TabsTrigger value="lessons" className="gap-2">
-                 <Calendar className="w-4 h-4" />
-                 Lesson Plans
-               </TabsTrigger>
-               <TabsTrigger value="analytics" className="gap-2">
-                 <BarChart3 className="w-4 h-4" />
-                 Analytics
-               </TabsTrigger>
+          <Tabs defaultValue="classes" className="space-y-6">
+            <TabsList className="flex flex-wrap gap-1 h-auto p-1">
+              <TabsTrigger value="classes" className="gap-2">
+                <Users className="w-4 h-4" />
+                Classes
+              </TabsTrigger>
+              <TabsTrigger value="assignments" className="gap-2">
+                <ClipboardList className="w-4 h-4" />
+                Assignments
+              </TabsTrigger>
+              <TabsTrigger value="announcements" className="gap-2">
+                <Megaphone className="w-4 h-4" />
+                Announcements
+              </TabsTrigger>
+              <TabsTrigger value="lessons" className="gap-2">
+                <Calendar className="w-4 h-4" />
+                Lesson Plans
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+              </TabsTrigger>
               <TabsTrigger value="resources">Resource Library</TabsTrigger>
               <TabsTrigger value="upload">Upload Materials</TabsTrigger>
             </TabsList>
 
-             <TabsContent value="classes" className="space-y-4">
-               <ClassManager userId={userId} />
-             </TabsContent>
- 
-             <TabsContent value="assignments" className="space-y-4">
-               <AssignmentManager userId={userId} />
-             </TabsContent>
- 
-             <TabsContent value="announcements" className="space-y-4">
-               <AnnouncementManager userId={userId} />
-             </TabsContent>
- 
-             <TabsContent value="lessons" className="space-y-4">
-               <LessonPlanManager userId={userId} />
-             </TabsContent>
- 
-             <TabsContent value="analytics" className="space-y-4">
-               <AnalyticsDashboard userId={userId} />
-             </TabsContent>
- 
+            <TabsContent value="classes" className="space-y-4">
+              <ClassManager userId={userId} />
+            </TabsContent>
+
+            <TabsContent value="assignments" className="space-y-4">
+              <AssignmentManager userId={userId} />
+            </TabsContent>
+
+            <TabsContent value="announcements" className="space-y-4">
+              <AnnouncementManager userId={userId} />
+            </TabsContent>
+
+            <TabsContent value="lessons" className="space-y-4">
+              <LessonPlanManager userId={userId} />
+            </TabsContent>
+
+            <TabsContent value="analytics" className="space-y-4">
+              <AnalyticsDashboard userId={userId} />
+            </TabsContent>
+
             <TabsContent value="resources" className="space-y-4">
               <ResourceLibrary userId={userId} />
             </TabsContent>

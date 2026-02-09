@@ -1,10 +1,21 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { GraduationCap, BookOpen, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Landing = () => {
     const navigate = useNavigate();
+    const { user, profile, loading } = useAuth();
+
+    // Redirect authenticated users to their dashboard
+    useEffect(() => {
+        if (!loading && user && profile) {
+            const redirectPath = profile.role === 'student' ? '/student' : '/teacher';
+            navigate(redirectPath);
+        }
+    }, [user, profile, loading, navigate]);
 
     const roles = [
         {
@@ -14,7 +25,7 @@ const Landing = () => {
             icon: GraduationCap,
             gradient: 'from-blue-500 to-cyan-500',
             hoverGradient: 'hover:from-blue-600 hover:to-cyan-600',
-            path: '/student',
+            path: '/signup',
         },
         {
             type: 'teacher' as const,
@@ -23,7 +34,7 @@ const Landing = () => {
             icon: BookOpen,
             gradient: 'from-purple-500 to-pink-500',
             hoverGradient: 'hover:from-purple-600 hover:to-pink-600',
-            path: '/teacher',
+            path: '/signup',
         },
     ];
 
