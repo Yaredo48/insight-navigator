@@ -172,7 +172,14 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Add authorization header for development
+  const headers = {
+    ...corsHeaders,
+    "Authorization": req.headers.get("Authorization") || "Bearer dev-key"
+  };
+
   try {
+    // Skip JWT verification for development
     const { messages, conversationId, documentContext, role, grade, subject } = await req.json();
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");

@@ -82,8 +82,8 @@ export function useLearningAnalytics(userId: string) {
       // Aggregate totals
       let totalMinutes = 0;
       let totalQuizzes = 0;
-      let totalFlashcards = flashcardReviews?.length || 0;
-      let totalVideos = videoProgress?.filter((v) => v.completed)?.length || 0;
+      const totalFlashcards = flashcardReviews?.length || 0;
+      const totalVideos = videoProgress?.filter((v) => v.completed)?.length || 0;
       let totalScore = 0;
       let currentStreak = 0;
       let longestStreak = 0;

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Browser Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        button { margin: 10px; padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+    </style>
+</head>
+<body>
+    <h1>Browser Authentication Test</h1>
+    <p>This test will simulate the exact same flow as the React app.</p>
+    
+    <div class="test-section">
+        <h2>Step 1: Test Signup</h2>
+        <button onclick="testSignup()">Create Test Account</button>
+        <div id="signup-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Step 2: Test Login</h2>
+        <input type="email" id="test-email" placeholder="Email" value="testuser@example.com" style="margin: 5px; padding: 5px;">
+        <input type="password" id="test-password" placeholder="Password" value="password123" style="margin: 5px; padding: 5px;">
+        <button onclick="testLogin()">Login</button>
+        <div id="login-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Step 3: Test Profile Fetch</h2>
+        <button onclick="testProfile()">Fetch Profile</button>
+        <div id="profile-result" class="result"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const { createClient } = supabase;
+        const supabaseUrl = 'http://127.0.0.1:54321';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        let currentUser = null;
+
+        async function testSignup() {
+            const resultDiv = document.getElementById('signup-result');
+            resultDiv.innerHTML = 'Creating account...';
+            
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: 'testuser@example.com',
+                    password: 'password123',
+                    options: {
+                        data: {
+                            name: 'Test User',
+                            role: 'student'
+                        }
+                    }
+                });
+                
+                if (error) {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = 'Signup Error: ' + JSON.stringify(error, null, 2);
+                } else {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = 'Signup Success! User ID: ' + data.user.id;
+                    currentUser = data.user;
+                    
+                    // Create profile
+                    const { error: profileError } = await supabase
+                        .from('user_profiles')
+                        .upsert({
+                            id: data.user.id,
+                            role: 'student',
+                            name: 'Test User'
+                        });
+                    
+                    if (profileError) {
+                        resultDiv.innerHTML += '<br>Profile Error: ' + JSON.stringify(profileError, null, 2);
+                    } else {
+                        resultDiv.innerHTML += '<br>Profile Created Successfully!';
+                    }
+                }
+            } catch (err) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = 'Exception: ' + err.message;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('login-result');
+            const email = document.getElementById('test-email').value;
+            const password = document.getElementById('test-password').value;
+            
+            resultDiv.innerHTML = 'Logging in...';
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = 'Login Error: ' + JSON.stringify(error, null, 2);
+                } else {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = 'Login Success! User ID: ' + data.user.id;
+                    currentUser = data.user;
+                }
+            } catch (err) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = 'Exception: ' + err.message;
+            }
+        }
+
+        async function testProfile() {
+            const resultDiv = document.getElementById('profile-result');
+            
+            if (!currentUser) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = 'Please login first';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Fetching profile...';
+            
+            try {
+                const { data, error } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', currentUser.id)
+                    .single();
+                
+                if (error) {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = 'Profile Error: ' + JSON.stringify(error, null, 2);
+                } else {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = 'Profile Found: ' + JSON.stringify(data, null, 2);
+                }
+            } catch (err) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = 'Exception: ' + err.message;
+            }
+        }
+
+        // Test auth state change listener
+        supabase.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state changed:', event, session);
+            if (session?.user) {
+                currentUser = session.user;
+            } else {
+                currentUser = null;
+            }
+        });
+    </script>
+</body>
+</html>

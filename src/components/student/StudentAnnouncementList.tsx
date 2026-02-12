@@ -38,7 +38,7 @@ export function StudentAnnouncementList({ studentId }: StudentAnnouncementListPr
         const classIds = enrollments?.map((e) => e.class_id) || [];
 
         // Fetch announcements: school-wide (no class_id) + student's classes
-        let query = supabase
+        const query = supabase
           .from('announcements')
           .select('*, classes(name)')
           .order('created_at', { ascending: false })

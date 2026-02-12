@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Debug</title>
+</head>
+<body>
+    <h1>Authentication Debug</h1>
+    <button onclick="testSignup()">Test Signup</button>
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="testProfile()">Test Profile</button>
+    <div id="result"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const { createClient } = supabase;
+        const supabaseUrl = 'http://127.0.0.1:54321';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        async function testSignup() {
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: 'test2@example.com',
+                    password: 'password123',
+                    options: {
+                        data: {
+                            name: 'Test User 2',
+                            role: 'student'
+                        }
+                    }
+                });
+                
+                if (error) {
+                    document.getElementById('result').innerHTML = 'Signup Error: ' + JSON.stringify(error);
+                } else {
+                    document.getElementById('result').innerHTML = 'Signup Success: ' + JSON.stringify(data);
+                    
+                    // Create profile
+                    const { error: profileError } = await supabase
+                        .from('user_profiles')
+                        .upsert({
+                            id: data.user.id,
+                            role: 'student',
+                            name: 'Test User 2'
+                        });
+                    
+                    if (profileError) {
+                        document.getElementById('result').innerHTML += '<br>Profile Error: ' + JSON.stringify(profileError);
+                    } else {
+                        document.getElementById('result').innerHTML += '<br>Profile Success!';
+                    }
+                }
+            } catch (err) {
+                document.getElementById('result').innerHTML = 'Exception: ' + err.message;
+            }
+        }
+
+        async function testLogin() {
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'test2@example.com',
+                    password: 'password123'
+                });
+                
+                if (error) {
+                    document.getElementById('result').innerHTML = 'Login Error: ' + JSON.stringify(error);
+                } else {
+                    document.getElementById('result').innerHTML = 'Login Success: ' + JSON.stringify(data);
+                    
+                    // Get profile
+                    const { data: profile, error: profileError } = await supabase
+                        .from('user_profiles')
+                        .select('*')
+                        .eq('id', data.user.id)
+                        .single();
+                    
+                    if (profileError) {
+                        document.getElementById('result').innerHTML += '<br>Profile Fetch Error: ' + JSON.stringify(profileError);
+                    } else {
+                        document.getElementById('result').innerHTML += '<br>Profile Fetch Success: ' + JSON.stringify(profile);
+                    }
+                }
+            } catch (err) {
+                document.getElementById('result').innerHTML = 'Exception: ' + err.message;
+            }
+        }
+
+        async function testProfile() {
+            try {
+                const { data, error } = await supabase
+                    .from('user_profiles')
+                    .select('*');
+                
+                if (error) {
+                    document.getElementById('result').innerHTML = 'Profile List Error: ' + JSON.stringify(error);
+                } else {
+                    document.getElementById('result').innerHTML = 'Profile List: ' + JSON.stringify(data);
+                }
+            } catch (err) {
+                document.getElementById('result').innerHTML = 'Exception: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>

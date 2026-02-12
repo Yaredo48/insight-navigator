@@ -34,7 +34,7 @@ const Login = () => {
         setIsLoading(true);
         try {
             await signIn(data.email, data.password);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Login error:', error);
             // toast.error(error.message || 'Login failed'); // AuthContext handles this
         } finally {

@@ -6,13 +6,10 @@ import { toast } from 'sonner';
 
 interface UserProfile {
     id: string;
-    role: 'student' | 'teacher' | null;
-    display_name: string | null;
+    role: 'student' | 'teacher';
+    name: string | null;
     created_at: string;
     updated_at: string;
-    user_id: string; // From Supabase schema
-    email: string | null;
-    avatar_url: string | null;
 }
 
 interface AuthContextType {
@@ -52,9 +49,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         console.log('Fetching profile for:', userId);
         try {
             const { data, error } = await supabase
-                .from('profiles')
+                .from('user_profiles')
                 .select('*')
-                .eq('user_id', userId)
+                .eq('id', userId)
                 .single();
 
             if (error) {
@@ -71,11 +68,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 id: data.id,
                 created_at: data.created_at,
                 updated_at: data.updated_at,
-                user_id: data.user_id,
-                email: data.email,
-                avatar_url: data.avatar_url,
-                display_name: data.display_name,
-                role: (data.role === 'student' || data.role === 'teacher') ? data.role : null
+                role: (data.role === 'student' || data.role === 'teacher') ? data.role : null,
+                name: data.name
             };
 
             console.log('Profile found:', userProfile);
@@ -90,12 +84,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Initialize auth state
     useEffect(() => {
+        console.log('AuthContext: Initializing auth state');
+        let mounted = true;
+        
+        // Add timeout to prevent infinite loading
+        const loadingTimeout = setTimeout(() => {
+            if (mounted && loading) {
+                console.log('AuthContext: Loading timeout, setting loading to false');
+                setLoading(false);
+            }
+        }, 5000); // 5 second timeout
+        
         // Get initial session
         supabase.auth.getSession().then(async ({ data: { session } }) => {
+            console.log('AuthContext: Got initial session:', session);
+            if (!mounted) return; // Prevent state updates if component unmounted
+            
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-                await fetchUserProfile(session.user.id);
+                console.log('AuthContext: Fetching profile for user:', session.user.id);
+                try {
+                    await fetchUserProfile(session.user.id);
+                } catch (error) {
+                    console.error('AuthContext: Error fetching profile:', error);
+                }
             }
             setLoading(false);
         });
@@ -104,17 +117,30 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            console.log('AuthContext: Auth state changed:', _event, session);
+            if (!mounted) return; // Prevent state updates if component unmounted
+            
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-                await fetchUserProfile(session.user.id);
+                console.log('AuthContext: Fetching profile for user:', session.user.id);
+                try {
+                    await fetchUserProfile(session.user.id);
+                } catch (error) {
+                    console.error('AuthContext: Error fetching profile:', error);
+                }
             } else {
+                console.log('AuthContext: Clearing profile');
                 setProfile(null);
             }
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            mounted = false;
+            clearTimeout(loadingTimeout);
+            subscription.unsubscribe();
+        };
     }, []);
 
     const signUp = async (email: string, password: string, name: string, role: 'student' | 'teacher') => {
@@ -144,13 +170,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 // However, `profiles` often has `id` referencing `auth.users.id`.
                 // Let's try upsert or basic insert.
                 const { error: profileError } = await supabase
-                    .from('profiles')
+                    .from('user_profiles')
                     .upsert({
-                        id: data.user.id, // Assuming profile ID matches user ID which is common
-                        user_id: data.user.id,
+                        id: data.user.id,
                         role,
-                        display_name: name,
-                        email: email
+                        name: name
                     });
 
                 if (profileError) {
