@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
-  const { signOut, profile, user } = useAuth();
+  const { profile, user } = useAuth();
   // Use the authenticated user's ID
   const userId = user?.id;
 
@@ -47,11 +47,9 @@ const TeacherDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {profile?.name && (
-                <span className="text-sm text-muted-foreground hidden sm:inline">
-                  Welcome, {profile.name}
-                </span>
-              )}
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                Welcome, {profile?.name}
+              </span>
               <Button
                 variant="outline"
                 onClick={() => navigate('/content')}
@@ -67,10 +65,6 @@ const TeacherDashboard = () => {
               >
                 <Eye className="w-4 h-4" />
                 View Student Dashboard
-              </Button>
-              <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
               </Button>
             </div>
           </div>

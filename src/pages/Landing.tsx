@@ -9,14 +9,6 @@ const Landing = () => {
     const navigate = useNavigate();
     const { user, profile, loading } = useAuth();
 
-    // Redirect authenticated users to their dashboard
-    useEffect(() => {
-        if (!loading && user && profile) {
-            const redirectPath = profile.role === 'student' ? '/student' : '/teacher';
-            navigate(redirectPath);
-        }
-    }, [user, profile, loading, navigate]);
-
     const roles = [
         {
             type: 'student' as const,
@@ -25,7 +17,7 @@ const Landing = () => {
             icon: GraduationCap,
             gradient: 'from-blue-500 to-cyan-500',
             hoverGradient: 'hover:from-blue-600 hover:to-cyan-600',
-            path: '/signup',
+            path: '/student',
         },
         {
             type: 'teacher' as const,
@@ -34,7 +26,7 @@ const Landing = () => {
             icon: BookOpen,
             gradient: 'from-purple-500 to-pink-500',
             hoverGradient: 'hover:from-purple-600 hover:to-pink-600',
-            path: '/signup',
+            path: '/teacher',
         },
     ];
 

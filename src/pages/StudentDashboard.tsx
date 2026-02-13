@@ -38,7 +38,7 @@ const SUBJECTS: Subject[] = [
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signOut, profile, user } = useAuth();
+  const { profile, user } = useAuth();
 
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<number | null>(null);
@@ -121,15 +121,9 @@ const StudentDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {profile?.name && (
-                <span className="text-sm text-muted-foreground hidden sm:inline">
-                  Welcome, {profile.name}
-                </span>
-              )}
-              <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                Welcome, {profile?.name}
+              </span>
             </div>
           </div>
         </div>
