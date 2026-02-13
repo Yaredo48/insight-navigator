@@ -331,21 +331,17 @@ export function useChat() {
   }, [toast]);
 
   // Send a message
-  const sendMessage = useCallback(async (content: string, documentContext?: string, context?: { role: string, grade?: string, subject?: string }) => {
+  const sendMessage = useCallback(async (content: string, documentContext?: string, context?: { role: string, grade?: any, subject?: any, gradeId?: any, subjectId?: any, book_id?: string }) => {
     if (!content.trim() || isLoading) return;
 
     let conversationId = currentConversationId;
 
     // Create a new conversation if needed
     if (!conversationId) {
-      // Parse IDs from context if available
-      const gradeId = context?.grade ? parseInt(context.grade) : undefined;
-      const subjectId = context?.subject ? parseInt(context.subject) : undefined;
-
       const newConv = await createConversation(content, {
         role: context?.role || 'student',
-        gradeId: gradeId,
-        subjectId: subjectId
+        gradeId: context?.gradeId || (context?.grade ? parseInt(context.grade) : undefined),
+        subjectId: context?.subjectId || (context?.subject ? parseInt(context.subject) : undefined)
       });
 
       if (!newConv) return;
@@ -353,11 +349,8 @@ export function useChat() {
     }
 
     setIsLoading(true);
-    setIsStreaming(true);
+    setIsStreaming(false); // Default to false for non-streaming backend
 
-    // Capture current messages before adding user message (fix race condition)
-    const currentMessages = [...messages];
-    
     // Add user message optimistically
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -368,127 +361,51 @@ export function useChat() {
     };
     setMessages(prev => [...prev, userMessage]);
 
-    // Save user message to database
-    const { data: savedUserMessage } = await supabase.from('messages').insert({
-      conversation_id: conversationId,
-      role: 'user',
-      content,
-    }).select().single();
-
-    // Update the optimistic message with the real ID
-    if (savedUserMessage) {
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === userMessage.id
-            ? { ...m, id: savedUserMessage.id }
-            : m
-        )
-      );
-    }
-
-    // Prepare messages for API (use captured messages to avoid stale closure)
-    const apiMessages = [...currentMessages, userMessage].map(m => ({
-      role: m.role,
-      content: m.content,
-    }));
-
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            messages: apiMessages,
-            conversationId,
-            documentContext,
-            role: context?.role,
-            grade: context?.grade,
-            subject: context?.subject,
-          }),
-        }
-      );
+      // Save user message to database
+      await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        role: 'user',
+        content,
+      });
+
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/api/v1/chat/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: content,
+          conversation_id: conversationId,
+          context: { documentContext },
+          grade_id: context?.gradeId || context?.grade,
+          subject_id: context?.subjectId || context?.subject,
+          book_id: context?.book_id
+        }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Error ${response.status}: ${errorData.details || 'Failed to get response'}`);
+        throw new Error(errorData.error || `Error ${response.status}: Failed to get response`);
       }
 
-      // Process streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = '';
-      let textBuffer = '';
+      const data = await response.json();
+      const assistantContent = data.response;
 
-      // Add empty assistant message that we'll update
-      const assistantMessageId = crypto.randomUUID();
-      setMessages(prev => [...prev, {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        created_at: new Date().toISOString(),
-        conversation_id: conversationId,
-      }]);
-
-      while (reader) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        textBuffer += decoder.decode(value, { stream: true });
-
-        // Process line by line
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              assistantContent += delta;
-              setMessages(prev =>
-                prev.map(m =>
-                  m.id === assistantMessageId
-                    ? { ...m, content: assistantContent }
-                    : m
-                )
-              );
-            }
-          } catch {
-            // Incomplete JSON, continue
-          }
-        }
-      }
-
-      // Save assistant message to database
       if (assistantContent) {
-        const { data: savedAssistant } = await supabase.from('messages').insert({
-          conversation_id: conversationId,
+        // Add assistant message to state
+        const assistantMessage: Message = {
+          id: data.message_id || crypto.randomUUID(),
           role: 'assistant',
           content: assistantContent,
-        }).select().single();
+          created_at: new Date().toISOString(),
+          conversation_id: conversationId,
+        };
 
-        // Update with real ID
-        if (savedAssistant) {
-          setMessages(prev =>
-            prev.map(m =>
-              m.id === assistantMessageId
-                ? { ...m, id: savedAssistant.id }
-                : m
-            )
-          );
-        }
+        setMessages(prev => [...prev, assistantMessage]);
+
+        // Note: Assistant message is already saved by the backend in ChatView
 
         // Update conversation title if it's the first exchange
         if (messages.length === 0) {
@@ -508,7 +425,7 @@ export function useChat() {
         variant: 'destructive',
       });
       // Remove the optimistic messages on error
-      setMessages(prev => prev.slice(0, -2));
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
     } finally {
       setIsLoading(false);
       setIsStreaming(false);

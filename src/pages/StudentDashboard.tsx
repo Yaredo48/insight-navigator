@@ -75,32 +75,57 @@ const StudentDashboard = () => {
     const selectedGradeData = GRADES.find((g) => g.id === selectedGrade);
     const selectedSubjectData = SUBJECTS.find((s) => s.id === selectedSubject);
 
-    const { data: conversation, error } = await supabase
-      .from('conversations')
-      .insert({
-        title: `${selectedGradeData?.name} - ${selectedSubjectData?.name}`,
-      })
-      .select()
-      .single();
+    try {
+      // Initialize session on backend
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/api/v1/books/initialize-session/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          grade_id: selectedGrade,
+          subject_id: selectedSubject,
+        }),
+      });
 
-    if (error) {
+      if (!response.ok) {
+        throw new Error('Failed to initialize session');
+      }
+
+      const sessionData = await response.json();
+
+      // Create local conversation for chat history tracking
+      const { data: conversation, error } = await supabase
+        .from('conversations')
+        .insert({
+          title: `${selectedGradeData?.name} - ${selectedSubjectData?.name}`,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      navigate(`/session-chat/${conversation.id}`, {
+        state: {
+          role: 'student',
+          gradeName: selectedGradeData?.name,
+          subjectName: selectedSubjectData?.name,
+          gradeId: selectedGrade,
+          subjectId: selectedSubject,
+          bookId: sessionData.book_id,
+          pdfUrl: sessionData.download_url,
+          bookTitle: sessionData.title
+        },
+      });
+    } catch (err) {
+      console.error('Error starting session:', err);
       toast({
         title: 'Error',
-        description: 'Failed to start learning session',
+        description: 'Failed to start learning session. Please check your backend connection.',
         variant: 'destructive',
       });
-      return;
     }
-
-    navigate(`/chat/${conversation.id}`, {
-      state: {
-        role: 'student',
-        gradeName: selectedGradeData?.name,
-        subjectName: selectedSubjectData?.name,
-        gradeId: selectedGrade,
-        subjectId: selectedSubject,
-      },
-    });
   }, [selectedGrade, selectedSubject, navigate, toast]);
 
   return (

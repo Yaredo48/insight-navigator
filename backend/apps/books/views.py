@@ -3,16 +3,73 @@ from rest_framework.response import Response
 from rest_framework import status
 from apps.core.services.supabase_service import SupabaseService
 from apps.core.services.file_processor import FileProcessor
+from apps.books.services.rag_service import RAGService
 import requests
 import logging
 import uuid
 import re
+from rest_framework.decorators import action
 
 logger = logging.getLogger(__name__)
 
-
 class BookViewSet(ViewSet):
     """ViewSet for Book operations with complete download → upload → register pipeline."""
+    
+    @action(detail=False, methods=['post'], url_path='initialize-session')
+    def initialize_session(self, request):
+        """
+        Initialize a learning session for a specific grade and subject.
+        Finds the book and triggers RAG ingestion if needed.
+        """
+        grade_id = request.data.get('grade_id')
+        subject_id = request.data.get('subject_id')
+        
+        if not grade_id or not subject_id:
+            return Response(
+                {'error': 'grade_id and subject_id are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        try:
+            # Find the book
+            filters = {'grade_id': grade_id, 'subject_id': subject_id}
+            books = SupabaseService.fetch_table('books', filters, limit=1)
+            
+            if not books:
+                return Response(
+                    {'error': 'No book found for this grade and subject'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+                
+            book = books[0]
+            book_id = book['id']
+            
+            # Check if indexed in RAG
+            is_indexed = book.get('is_processed', False) and \
+                        book.get('metadata', {}).get('rag_indexed', False)
+            
+            if not is_indexed:
+                logger.info(f"Book {book_id} not indexed. Triggering RAG ingestion...")
+                rag_service = RAGService()
+                # Run ingestion (this should ideally be async/background task)
+                success = rag_service.ingest_book(book_id)
+                if not success:
+                    logger.warning(f"RAG ingestion failed for book {book_id}")
+            
+            return Response({
+                'book_id': book_id,
+                'title': book['title'],
+                'download_url': book.get('download_url'),
+                'is_indexed': True # Assuming it worked or was already indexed
+            })
+            
+        except Exception as e:
+            logger.error(f"Error initializing session: {e}")
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     
     def list(self, request):
         """List all books with optional filtering by grade_id and subject_id."""

@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from apps.core.services.supabase_service import SupabaseService
 from apps.core.services.ai_service import AIService
+from apps.books.services.rag_service import RAGService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -94,9 +95,10 @@ class ChatView(APIView):
         """
         user_message = request.data.get('message')
         conversation_id = request.data.get('conversation_id')
-        context = request.data.get('context', {})
+        context_data = request.data.get('context', {})
         grade_id = request.data.get('grade_id')
         subject_id = request.data.get('subject_id')
+        book_id = request.data.get('book_id')
         
         if not user_message:
             return Response(
@@ -135,24 +137,34 @@ class ChatView(APIView):
                 order_by='created_at'
             )
             
-            # Build context from books and documents
+            # --- CONTEXT RETRIEVAL (RAG) ---
+            rag_service = RAGService()
             context_text = ""
             
-            # Get relevant books if grade/subject specified
-            if grade_id or subject_id:
-                book_filters = {}
-                if grade_id:
-                    book_filters['grade_id'] = grade_id
-                if subject_id:
-                    book_filters['subject_id'] = subject_id
-                
-                books = SupabaseService.fetch_table('books', book_filters, limit=5)
-                if books:
-                    context_text = "Relevant educational content:\n"
-                    for book in books:
-                        if book.get('extracted_text'):
-                            # Use first 500 chars of extracted text
-                            context_text += f"- {book['title']}: {book['extracted_text'][:500]}...\n"
+            # Use RAG to fetch relevant chunks
+            if book_id:
+                logger.info(f"Fetching RAG context for book {book_id}")
+                context_text = rag_service.query_book_context(user_message, book_id=book_id)
+            elif grade_id or subject_id:
+                logger.info(f"Fetching general RAG context for grade {grade_id}, subject {subject_id}")
+                # We could filter by metadata here if we wanted to be more specific
+                context_text = rag_service.query_book_context(user_message)
+            
+            # Fallback to basic keyword search if RAG is empty or failed
+            if not context_text:
+                if grade_id or subject_id:
+                    book_filters = {}
+                    if grade_id:
+                        book_filters['grade_id'] = grade_id
+                    if subject_id:
+                        book_filters['subject_id'] = subject_id
+                    
+                    books = SupabaseService.fetch_table('books', book_filters, limit=3)
+                    if books:
+                        context_text = "Relevant educational content (backup):\n"
+                        for book in books:
+                            if book.get('extracted_text'):
+                                context_text += f"- {book['title']}: {book['extracted_text'][:500]}...\n"
             
             # Get relevant documents
             documents = SupabaseService.fetch_table(
@@ -180,7 +192,7 @@ class ChatView(APIView):
                 message=user_message,
                 context=context_text,
                 conversation_history=message_history,
-                system_prompt=context.get('system_prompt')
+                system_prompt=context_data.get('system_prompt')
             )
             
             # Save AI response

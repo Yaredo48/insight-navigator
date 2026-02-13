@@ -117,7 +117,7 @@ Remember: You are a patient, encouraging tutor helping Ethiopian students succee
         if context:
             messages.append({
                 "role": "system", 
-                "content": f"Use the following reference materials when answering:\n\n{context}"
+                "content": f"Use the following reference materials when answering. IF THE ANSWER IS NOT IN THE CONTEXT, STATE THAT YOU DON'T KNOW BASED ON THE BOOK AND TRY TO HELP OTHERWISE. ALWAYS CITE THE BOOK AND PAGE NUMBER IF AVAILABLE IN THE CONTEXT.\n\n{context}"
             })
         
         # Add chat history (last 10 messages)
@@ -130,5 +130,36 @@ Remember: You are a patient, encouraging tutor helping Ethiopian students succee
         
         # Add current message
         messages.append({"role": "user", "content": user_message})
+        
+        return self.generate_response(messages)
+
+    def chat(self, message, context=None, conversation_history=None, system_prompt=None):
+        """Compatibility method for ChatView."""
+        # Map conversation_history to history
+        history = []
+        if conversation_history:
+            for msg in conversation_history:
+                history.append({
+                    'role': msg.get('role', 'user'),
+                    'content': msg.get('content', '')
+                })
+        
+        # Use existing logic
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        else:
+            messages.append({"role": "system", "content": self.build_system_prompt()})
+            
+        if context:
+            messages.append({
+                "role": "system", 
+                "content": f"Use the following reference materials when answering:\n\n{context}"
+            })
+            
+        for msg in history:
+            messages.append(msg)
+            
+        messages.append({"role": "user", "content": message})
         
         return self.generate_response(messages)

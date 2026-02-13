@@ -80,6 +80,11 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 OPENAI_EMBEDDING_MODEL = os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-ada-002')
 OPENAI_CHAT_MODEL = os.getenv('OPENAI_CHAT_MODEL', 'gpt-4')
 
+# Pinecone Configuration
+PINECONE_API_KEY = os.getenv('PINECONE_API_KEY', '')
+PINECONE_ENVIRONMENT = os.getenv('PINECONE_ENVIRONMENT', '')
+PINECONE_INDEX_NAME = os.getenv('PINECONE_INDEX_NAME', 'insight-navigator')
+
 # JWT Configuration (Supabase Auth)
 JWT_SECRET = os.getenv('SUPABASE_JWT_SECRET', '')
 JWT_ALGORITHM = 'HS256'

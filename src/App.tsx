@@ -9,6 +9,7 @@ import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import ContentManagement from "./pages/ContentManagement";
 import LearningCenter from "./pages/LearningCenter";
+import SessionChat from "./pages/SessionChat";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/teacher" element={<TeacherDashboard />} />
             <Route path="/content" element={<ContentManagement />} />
             <Route path="/learn" element={<LearningCenter />} />
+            <Route path="/session-chat/:conversationId?" element={<SessionChat />} />
             <Route path="/chat/:conversationId?" element={<Index />} />
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
