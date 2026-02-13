@@ -3,7 +3,7 @@ import uuid
 import requests
 from io import BytesIO
 import PyPDF2
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from apps.core.services.ai_service import AIService
 from apps.core.services.pinecone_service import PineconeService
 from apps.core.services.supabase_service import SupabaseService
